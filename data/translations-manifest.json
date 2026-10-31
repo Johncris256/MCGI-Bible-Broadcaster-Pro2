@@ -1,0 +1,887 @@
+[
+  {
+    "id": "ANG DATING BIBLIA",
+    "name": "ANG DATING BIBLIA",
+    "file": "ANG DATING BIBLIA.json"
+  },
+  {
+    "id": "BICOL BIBLE (Ang Dating Biblia)",
+    "name": "BICOL BIBLE (Ang Dating Biblia)",
+    "file": "BICOL BIBLE (Ang Dating Biblia).json"
+  },
+  {
+    "id": "AFRICAN BIBLE",
+    "name": "AFRICAN BIBLE",
+    "file": "AFRICAN BIBLE.json"
+  },
+  {
+    "id": "ALKITAB LAMA",
+    "name": "ALKITAB LAMA",
+    "file": "ALKITAB LAMA.json"
+  },
+  {
+    "id": "ALKITAB VERSI BORNEO",
+    "name": "ALKITAB VERSI BORNEO",
+    "file": "ALKITAB VERSI BORNEO.json"
+  },
+  {
+    "id": "ALMEIDA REVISTA E ATUALIZADA",
+    "name": "ALMEIDA REVISTA E ATUALIZADA",
+    "file": "ALMEIDA REVISTA E ATUALIZADA.json"
+  },
+  {
+    "id": "ALMEIDA REVISTA E CORRIGIDA 2009",
+    "name": "ALMEIDA REVISTA E CORRIGIDA 2009",
+    "file": "ALMEIDA REVISTA E CORRIGIDA 2009.json"
+  },
+  {
+    "id": "AMERICAN KING JAMES VERSION",
+    "name": "AMERICAN KING JAMES VERSION",
+    "file": "AMERICAN KING JAMES VERSION.json"
+  },
+  {
+    "id": "AMPLIFIED BIBLE",
+    "name": "AMPLIFIED BIBLE",
+    "file": "AMPLIFIED BIBLE.json"
+  },
+  {
+    "id": "AN AMERICAN TRANSLATION",
+    "name": "AN AMERICAN TRANSLATION",
+    "file": "AN AMERICAN TRANSLATION.json"
+  },
+  {
+    "id": "ANALYTICAL-LITERAL TRANSLATION",
+    "name": "ANALYTICAL-LITERAL TRANSLATION",
+    "file": "ANALYTICAL-LITERAL TRANSLATION.json"
+  },
+  {
+    "id": "ANG BAGONG ANG BIBLIA",
+    "name": "ANG BAGONG ANG BIBLIA",
+    "file": "ANG BAGONG ANG BIBLIA.json"
+  },
+  {
+    "id": "ANG BAGONG TIPAN_ FILIPINO STANDARD VERSION",
+    "name": "ANG BAGONG TIPAN_ FILIPINO STANDARD VERSION",
+    "file": "ANG BAGONG TIPAN_ FILIPINO STANDARD VERSION.json"
+  },
+  {
+    "id": "ANG BIBLIA 1905",
+    "name": "ANG BIBLIA 1905",
+    "file": "ANG BIBLIA 1905.json"
+  },
+  {
+    "id": "ANG BIBLIA 1915",
+    "name": "ANG BIBLIA 1915",
+    "file": "ANG BIBLIA 1915.json"
+  },
+  {
+    "id": "ANG BIBLIA 1982",
+    "name": "ANG BIBLIA 1982",
+    "file": "ANG BIBLIA 1982.json"
+  },
+  {
+    "id": "ANG SALITA NG DIOS",
+    "name": "ANG SALITA NG DIOS",
+    "file": "ANG SALITA NG DIOS.json"
+  },
+  {
+    "id": "ANG SALITA NG DIOS (TAGALOG CONTEMPORARY BIBLE)",
+    "name": "ANG SALITA NG DIOS (TAGALOG CONTEMPORARY BIBLE)",
+    "file": "ANG SALITA NG DIOS (TAGALOG CONTEMPORARY BIBLE).json"
+  },
+  {
+    "id": "ARAMAIC BIBLE IN PLAIN ENGLISH",
+    "name": "ARAMAIC BIBLE IN PLAIN ENGLISH",
+    "file": "ARAMAIC BIBLE IN PLAIN ENGLISH.json"
+  },
+  {
+    "id": "BEREAN GREEK BIBLE",
+    "name": "BEREAN GREEK BIBLE",
+    "file": "BEREAN GREEK BIBLE.json"
+  },
+  {
+    "id": "BEREAN LITERAL BIBLE",
+    "name": "BEREAN LITERAL BIBLE",
+    "file": "BEREAN LITERAL BIBLE.json"
+  },
+  {
+    "id": "BIBLE IN BASIC ENGLISH",
+    "name": "BIBLE IN BASIC ENGLISH",
+    "file": "BIBLE IN BASIC ENGLISH.json"
+  },
+  {
+    "id": "BIBLIA ANTIGA",
+    "name": "BIBLIA ANTIGA",
+    "file": "BIBLIA ANTIGA.json"
+  },
+  {
+    "id": "BIBLIA CATÓLICA",
+    "name": "BIBLIA CATÓLICA",
+    "file": "BIBLIA CATÓLICA.json"
+  },
+  {
+    "id": "BIBLIA SEPTUAGINTA AL ESPAÑOL",
+    "name": "BIBLIA SEPTUAGINTA AL ESPAÑOL",
+    "file": "BIBLIA SEPTUAGINTA AL ESPAÑOL.json"
+  },
+  {
+    "id": "BIBLIA XOXOA",
+    "name": "BIBLIA XOXOA",
+    "file": "BIBLIA XOXOA.json"
+  },
+  {
+    "id": "BIBLICA ÉWÉ NEW TESTAMENT",
+    "name": "BIBLICA ÉWÉ NEW TESTAMENT",
+    "file": "BIBLICA ÉWÉ NEW TESTAMENT.json"
+  },
+  {
+    "id": "BIBLIYANG KATOLIKO",
+    "name": "BIBLIYANG KATOLIKO",
+    "file": "BIBLIYANG KATOLIKO.json"
+  },
+  {
+    "id": "BICOL BIBLE (Ang Biblia 1905)",
+    "name": "BICOL BIBLE (Ang Biblia 1905)",
+    "file": "BICOL BIBLE (Ang Biblia 1905).json"
+  },
+  {
+    "id": "BISHOPS BIBLE",
+    "name": "BISHOPS BIBLE",
+    "file": "BISHOPS BIBLE.json"
+  },
+  {
+    "id": "CEBUANO BIBLE",
+    "name": "CEBUANO BIBLE",
+    "file": "CEBUANO BIBLE.json"
+  },
+  {
+    "id": "CEBUANO BIBLE - BUGNA VERSION",
+    "name": "CEBUANO BIBLE - BUGNA VERSION",
+    "file": "CEBUANO BIBLE - BUGNA VERSION.json"
+  },
+  {
+    "id": "CEBUANO BIBLE - PINADAYAG VERSION",
+    "name": "CEBUANO BIBLE - PINADAYAG VERSION",
+    "file": "CEBUANO BIBLE - PINADAYAG VERSION.json"
+  },
+  {
+    "id": "CHAVACANO BIBLE",
+    "name": "CHAVACANO BIBLE",
+    "file": "CHAVACANO BIBLE.json"
+  },
+  {
+    "id": "CHINESE BIBLE PINYIN VERSION",
+    "name": "CHINESE BIBLE PINYIN VERSION",
+    "file": "CHINESE BIBLE PINYIN VERSION.json"
+  },
+  {
+    "id": "CHINESE KING JAMES VERSION - SIMPLIFIED",
+    "name": "CHINESE KING JAMES VERSION - SIMPLIFIED",
+    "file": "CHINESE KING JAMES VERSION - SIMPLIFIED.json"
+  },
+  {
+    "id": "CHINESE KING JAMES VERSION - TRADITIONAL",
+    "name": "CHINESE KING JAMES VERSION - TRADITIONAL",
+    "file": "CHINESE KING JAMES VERSION - TRADITIONAL.json"
+  },
+  {
+    "id": "CHINESE OLD VERSION - SIMPLIFIED",
+    "name": "CHINESE OLD VERSION - SIMPLIFIED",
+    "file": "CHINESE OLD VERSION - SIMPLIFIED.json"
+  },
+  {
+    "id": "CHINESE OLD VERSION - TRADITIONAL",
+    "name": "CHINESE OLD VERSION - TRADITIONAL",
+    "file": "CHINESE OLD VERSION - TRADITIONAL.json"
+  },
+  {
+    "id": "CHINESE RECOVERY VERSION - SIMPLIFIED",
+    "name": "CHINESE RECOVERY VERSION - SIMPLIFIED",
+    "file": "CHINESE RECOVERY VERSION - SIMPLIFIED.json"
+  },
+  {
+    "id": "CHINESE RECOVERY VERSION - TRADITIONAL",
+    "name": "CHINESE RECOVERY VERSION - TRADITIONAL",
+    "file": "CHINESE RECOVERY VERSION - TRADITIONAL.json"
+  },
+  {
+    "id": "CHINESE UNION VERSION - SIMPLIFIED",
+    "name": "CHINESE UNION VERSION - SIMPLIFIED",
+    "file": "CHINESE UNION VERSION - SIMPLIFIED.json"
+  },
+  {
+    "id": "CHINESE UNION VERSION - TRADITIONAL",
+    "name": "CHINESE UNION VERSION - TRADITIONAL",
+    "file": "CHINESE UNION VERSION - TRADITIONAL.json"
+  },
+  {
+    "id": "CODEX SINAITICUS IN ENGLISH TRANSLATION",
+    "name": "CODEX SINAITICUS IN ENGLISH TRANSLATION",
+    "file": "CODEX SINAITICUS IN ENGLISH TRANSLATION.json"
+  },
+  {
+    "id": "COMMON ENGLISH BIBLE",
+    "name": "COMMON ENGLISH BIBLE",
+    "file": "COMMON ENGLISH BIBLE.json"
+  },
+  {
+    "id": "CONTEMPORARY ENGLISH VERSION",
+    "name": "CONTEMPORARY ENGLISH VERSION",
+    "file": "CONTEMPORARY ENGLISH VERSION.json"
+  },
+  {
+    "id": "DARBY BIBLE",
+    "name": "DARBY BIBLE",
+    "file": "DARBY BIBLE.json"
+  },
+  {
+    "id": "DOUAY-RHEIMS VERSION",
+    "name": "DOUAY-RHEIMS VERSION",
+    "file": "DOUAY-RHEIMS VERSION.json"
+  },
+  {
+    "id": "DUTCH BIBLE",
+    "name": "DUTCH BIBLE",
+    "file": "DUTCH BIBLE.json"
+  },
+  {
+    "id": "EBERHARD NESTLE 1904",
+    "name": "EBERHARD NESTLE 1904",
+    "file": "EBERHARD NESTLE 1904.json"
+  },
+  {
+    "id": "ELBERFELDER 1905",
+    "name": "ELBERFELDER 1905",
+    "file": "ELBERFELDER 1905.json"
+  },
+  {
+    "id": "EMPHASIZED BIBLE",
+    "name": "EMPHASIZED BIBLE",
+    "file": "EMPHASIZED BIBLE.json"
+  },
+  {
+    "id": "EMPHATIC DIAGLOTT",
+    "name": "EMPHATIC DIAGLOTT",
+    "file": "EMPHATIC DIAGLOTT.json"
+  },
+  {
+    "id": "ENGLISH MAJORITY TEXT VERSION",
+    "name": "ENGLISH MAJORITY TEXT VERSION",
+    "file": "ENGLISH MAJORITY TEXT VERSION.json"
+  },
+  {
+    "id": "ENGLISH REVISED VERSION",
+    "name": "ENGLISH REVISED VERSION",
+    "file": "ENGLISH REVISED VERSION.json"
+  },
+  {
+    "id": "ENGLISH STANDARD VERSION",
+    "name": "ENGLISH STANDARD VERSION",
+    "file": "ENGLISH STANDARD VERSION.json"
+  },
+  {
+    "id": "ETHERIDGE TRANSLATION",
+    "name": "ETHERIDGE TRANSLATION",
+    "file": "ETHERIDGE TRANSLATION.json"
+  },
+  {
+    "id": "FRENCH BIBLE",
+    "name": "FRENCH BIBLE",
+    "file": "FRENCH BIBLE.json"
+  },
+  {
+    "id": "GENEVA BIBLE",
+    "name": "GENEVA BIBLE",
+    "file": "GENEVA BIBLE.json"
+  },
+  {
+    "id": "GERMAN BIBLE",
+    "name": "GERMAN BIBLE",
+    "file": "GERMAN BIBLE.json"
+  },
+  {
+    "id": "GOD'S WORD",
+    "name": "GOD'S WORD",
+    "file": "GOD'S WORD.json"
+  },
+  {
+    "id": "GODBEY NEW TESTAMENT",
+    "name": "GODBEY NEW TESTAMENT",
+    "file": "GODBEY NEW TESTAMENT.json"
+  },
+  {
+    "id": "GOOD NEWS BIBLE",
+    "name": "GOOD NEWS BIBLE",
+    "file": "GOOD NEWS BIBLE.json"
+  },
+  {
+    "id": "GREEK WESCOTT-HORT",
+    "name": "GREEK WESCOTT-HORT",
+    "file": "GREEK WESCOTT-HORT.json"
+  },
+  {
+    "id": "GREEK WESCOTT-HORT TRANSLITERATED",
+    "name": "GREEK WESCOTT-HORT TRANSLITERATED",
+    "file": "GREEK WESCOTT-HORT TRANSLITERATED.json"
+  },
+  {
+    "id": "HAITIAN CREOLE BIBLE",
+    "name": "HAITIAN CREOLE BIBLE",
+    "file": "HAITIAN CREOLE BIBLE.json"
+  },
+  {
+    "id": "HANGUL KING JAMES VERSION",
+    "name": "HANGUL KING JAMES VERSION",
+    "file": "HANGUL KING JAMES VERSION.json"
+  },
+  {
+    "id": "HAWAI‘I PIDGIN",
+    "name": "HAWAI‘I PIDGIN",
+    "file": "HAWAI‘I PIDGIN.json"
+  },
+  {
+    "id": "HEBREW NAMES VERSION",
+    "name": "HEBREW NAMES VERSION",
+    "file": "HEBREW NAMES VERSION.json"
+  },
+  {
+    "id": "HILIGAYNON BIBLE",
+    "name": "HILIGAYNON BIBLE",
+    "file": "HILIGAYNON BIBLE.json"
+  },
+  {
+    "id": "HINDI BIBLE",
+    "name": "HINDI BIBLE",
+    "file": "HINDI BIBLE.json"
+  },
+  {
+    "id": "HOLMAN CHRISTIAN STANDARD BIBLE",
+    "name": "HOLMAN CHRISTIAN STANDARD BIBLE",
+    "file": "HOLMAN CHRISTIAN STANDARD BIBLE.json"
+  },
+  {
+    "id": "ILOCANO BIBLE",
+    "name": "ILOCANO BIBLE",
+    "file": "ILOCANO BIBLE.json"
+  },
+  {
+    "id": "INDONESIAN BIBLE",
+    "name": "INDONESIAN BIBLE",
+    "file": "INDONESIAN BIBLE.json"
+  },
+  {
+    "id": "INTERNATIONAL STANDARD VERSION",
+    "name": "INTERNATIONAL STANDARD VERSION",
+    "file": "INTERNATIONAL STANDARD VERSION.json"
+  },
+  {
+    "id": "ITALIAN NUOVA RIVEDUTA",
+    "name": "ITALIAN NUOVA RIVEDUTA",
+    "file": "ITALIAN NUOVA RIVEDUTA.json"
+  },
+  {
+    "id": "ITALIAN RIVEDUTA LUZZI",
+    "name": "ITALIAN RIVEDUTA LUZZI",
+    "file": "ITALIAN RIVEDUTA LUZZI.json"
+  },
+  {
+    "id": "JAMES MOFFATT",
+    "name": "JAMES MOFFATT",
+    "file": "JAMES MOFFATT.json"
+  },
+  {
+    "id": "JAPANESE SHINKAIYAKU SEISHO",
+    "name": "JAPANESE SHINKAIYAKU SEISHO",
+    "file": "JAPANESE SHINKAIYAKU SEISHO.json"
+  },
+  {
+    "id": "JFA-ATUALIZADA",
+    "name": "JFA-ATUALIZADA",
+    "file": "JFA-ATUALIZADA.json"
+  },
+  {
+    "id": "JFA-CORRIGIDA",
+    "name": "JFA-CORRIGIDA",
+    "file": "JFA-CORRIGIDA.json"
+  },
+  {
+    "id": "JFA-CORRIGIDA E REVISTA FIEL",
+    "name": "JFA-CORRIGIDA E REVISTA FIEL",
+    "file": "JFA-CORRIGIDA E REVISTA FIEL.json"
+  },
+  {
+    "id": "JFA-CORRIGIDA FIEL",
+    "name": "JFA-CORRIGIDA FIEL",
+    "file": "JFA-CORRIGIDA FIEL.json"
+  },
+  {
+    "id": "JFA-REVISADA IMPRENSA BIBLICA",
+    "name": "JFA-REVISADA IMPRENSA BIBLICA",
+    "file": "JFA-REVISADA IMPRENSA BIBLICA.json"
+  },
+  {
+    "id": "JFA-REVISTA E ATUALIZADA",
+    "name": "JFA-REVISTA E ATUALIZADA",
+    "file": "JFA-REVISTA E ATUALIZADA.json"
+  },
+  {
+    "id": "KING JAMES BIBLE CLARIFIED",
+    "name": "KING JAMES BIBLE CLARIFIED",
+    "file": "KING JAMES BIBLE CLARIFIED.json"
+  },
+  {
+    "id": "KING JAMES VERSION",
+    "name": "KING JAMES VERSION",
+    "file": "KING JAMES VERSION.json"
+  },
+  {
+    "id": "KING JAMES VERSION 1611",
+    "name": "KING JAMES VERSION 1611",
+    "file": "KING JAMES VERSION 1611.json"
+  },
+  {
+    "id": "KING JEMS PISIN BAIBEL - 2015",
+    "name": "KING JEMS PISIN BAIBEL - 2015",
+    "file": "KING JEMS PISIN BAIBEL - 2015.json"
+  },
+  {
+    "id": "KOREAN AUTHORIZED KING JAMES VERSION",
+    "name": "KOREAN AUTHORIZED KING JAMES VERSION",
+    "file": "KOREAN AUTHORIZED KING JAMES VERSION.json"
+  },
+  {
+    "id": "KOREAN KING JAMES VERSION",
+    "name": "KOREAN KING JAMES VERSION",
+    "file": "KOREAN KING JAMES VERSION.json"
+  },
+  {
+    "id": "L'ANCIENNE BIBLE",
+    "name": "L'ANCIENNE BIBLE",
+    "file": "L'ANCIENNE BIBLE.json"
+  },
+  {
+    "id": "LA BIBLE 1885",
+    "name": "LA BIBLE 1885",
+    "file": "LA BIBLE 1885.json"
+  },
+  {
+    "id": "LA BIBLIA ANTIGUA",
+    "name": "LA BIBLIA ANTIGUA",
+    "file": "LA BIBLIA ANTIGUA.json"
+  },
+  {
+    "id": "LA BIBLIA CATÓLICA",
+    "name": "LA BIBLIA CATÓLICA",
+    "file": "LA BIBLIA CATÓLICA.json"
+  },
+  {
+    "id": "LA BIBLIA DE LAS AMERICAS",
+    "name": "LA BIBLIA DE LAS AMERICAS",
+    "file": "LA BIBLIA DE LAS AMERICAS.json"
+  },
+  {
+    "id": "LAMSA TRANSLATION",
+    "name": "LAMSA TRANSLATION",
+    "file": "LAMSA TRANSLATION.json"
+  },
+  {
+    "id": "LAS SAGRADAS ESCRITURAS",
+    "name": "LAS SAGRADAS ESCRITURAS",
+    "file": "LAS SAGRADAS ESCRITURAS.json"
+  },
+  {
+    "id": "LATIN VULGATE",
+    "name": "LATIN VULGATE",
+    "file": "LATIN VULGATE.json"
+  },
+  {
+    "id": "LITERAL TRANSLATION OF THE HOLY BIBLE",
+    "name": "LITERAL TRANSLATION OF THE HOLY BIBLE",
+    "file": "LITERAL TRANSLATION OF THE HOLY BIBLE.json"
+  },
+  {
+    "id": "LIVING BIBLE",
+    "name": "LIVING BIBLE",
+    "file": "LIVING BIBLE.json"
+  },
+  {
+    "id": "LIVING ORACLES",
+    "name": "LIVING ORACLES",
+    "file": "LIVING ORACLES.json"
+  },
+  {
+    "id": "LUTHER (1912)",
+    "name": "LUTHER (1912)",
+    "file": "LUTHER (1912).json"
+  },
+  {
+    "id": "MACE NEW TESTAMENT",
+    "name": "MACE NEW TESTAMENT",
+    "file": "MACE NEW TESTAMENT.json"
+  },
+  {
+    "id": "MAGANDANG BALITA BIBLIA",
+    "name": "MAGANDANG BALITA BIBLIA",
+    "file": "MAGANDANG BALITA BIBLIA.json"
+  },
+  {
+    "id": "MESSIANIC RENEWED CONVENANT",
+    "name": "MESSIANIC RENEWED CONVENANT",
+    "file": "MESSIANIC RENEWED CONVENANT.json"
+  },
+  {
+    "id": "MILES COVERDALE 1535",
+    "name": "MILES COVERDALE 1535",
+    "file": "MILES COVERDALE 1535.json"
+  },
+  {
+    "id": "MODERN ENGLISH VERSION",
+    "name": "MODERN ENGLISH VERSION",
+    "file": "MODERN ENGLISH VERSION.json"
+  },
+  {
+    "id": "MODERN KING JAMES VERSION",
+    "name": "MODERN KING JAMES VERSION",
+    "file": "MODERN KING JAMES VERSION.json"
+  },
+  {
+    "id": "MODERN SPELLING TYNDALE-COVERDALE",
+    "name": "MODERN SPELLING TYNDALE-COVERDALE",
+    "file": "MODERN SPELLING TYNDALE-COVERDALE.json"
+  },
+  {
+    "id": "MR. WHISTON'S PRIMITIVE NEW TESTAMENT",
+    "name": "MR. WHISTON'S PRIMITIVE NEW TESTAMENT",
+    "file": "MR. WHISTON'S PRIMITIVE NEW TESTAMENT.json"
+  },
+  {
+    "id": "MURDOCK TRANSLATION",
+    "name": "MURDOCK TRANSLATION",
+    "file": "MURDOCK TRANSLATION.json"
+  },
+  {
+    "id": "NEPALI NEW REVISED VERSION",
+    "name": "NEPALI NEW REVISED VERSION",
+    "file": "NEPALI NEW REVISED VERSION.json"
+  },
+  {
+    "id": "NEW AMERICAN STANDARD BIBLE",
+    "name": "NEW AMERICAN STANDARD BIBLE",
+    "file": "NEW AMERICAN STANDARD BIBLE.json"
+  },
+  {
+    "id": "NEW HEART ENGLISH BIBLE",
+    "name": "NEW HEART ENGLISH BIBLE",
+    "file": "NEW HEART ENGLISH BIBLE.json"
+  },
+  {
+    "id": "NEW HEART ENGLISH BIBLE_ MESSIANIC EDITION",
+    "name": "NEW HEART ENGLISH BIBLE_ MESSIANIC EDITION",
+    "file": "NEW HEART ENGLISH BIBLE_ MESSIANIC EDITION.json"
+  },
+  {
+    "id": "NEW INTERNATIONAL READER'S VERSION",
+    "name": "NEW INTERNATIONAL READER'S VERSION",
+    "file": "NEW INTERNATIONAL READER'S VERSION.json"
+  },
+  {
+    "id": "NEW INTERNATIONAL VERSION",
+    "name": "NEW INTERNATIONAL VERSION",
+    "file": "NEW INTERNATIONAL VERSION.json"
+  },
+  {
+    "id": "NEW INTERNATIONAL VERSION - UK",
+    "name": "NEW INTERNATIONAL VERSION - UK",
+    "file": "NEW INTERNATIONAL VERSION - UK.json"
+  },
+  {
+    "id": "NEW KING JAMES VERSION",
+    "name": "NEW KING JAMES VERSION",
+    "file": "NEW KING JAMES VERSION.json"
+  },
+  {
+    "id": "NEW LIFE VERSION",
+    "name": "NEW LIFE VERSION",
+    "file": "NEW LIFE VERSION.json"
+  },
+  {
+    "id": "NEW LIVING TRANSLATION",
+    "name": "NEW LIVING TRANSLATION",
+    "file": "NEW LIVING TRANSLATION.json"
+  },
+  {
+    "id": "NEW MATTHEW BIBLE",
+    "name": "NEW MATTHEW BIBLE",
+    "file": "NEW MATTHEW BIBLE.json"
+  },
+  {
+    "id": "NEW PILIPINO VERSION",
+    "name": "NEW PILIPINO VERSION",
+    "file": "NEW PILIPINO VERSION.json"
+  },
+  {
+    "id": "NEW REVISED STANDARD VERSION",
+    "name": "NEW REVISED STANDARD VERSION",
+    "file": "NEW REVISED STANDARD VERSION.json"
+  },
+  {
+    "id": "NEW WORLD TRANSLATION",
+    "name": "NEW WORLD TRANSLATION",
+    "file": "NEW WORLD TRANSLATION.json"
+  },
+  {
+    "id": "NKWA ASEM",
+    "name": "NKWA ASEM",
+    "file": "NKWA ASEM.json"
+  },
+  {
+    "id": "NOAH WEBSTER",
+    "name": "NOAH WEBSTER",
+    "file": "NOAH WEBSTER.json"
+  },
+  {
+    "id": "NORWEGIAN BIBLE",
+    "name": "NORWEGIAN BIBLE",
+    "file": "NORWEGIAN BIBLE.json"
+  },
+  {
+    "id": "NOVA TRADUÇÃO NA LINGUAGEM DE HOJE",
+    "name": "NOVA TRADUÇÃO NA LINGUAGEM DE HOJE",
+    "file": "NOVA TRADUÇÃO NA LINGUAGEM DE HOJE.json"
+  },
+  {
+    "id": "NOVA VERSÃO INTERNACIONAL",
+    "name": "NOVA VERSÃO INTERNACIONAL",
+    "file": "NOVA VERSÃO INTERNACIONAL.json"
+  },
+  {
+    "id": "NUEVA VERSIÓN INTERNACIONAL",
+    "name": "NUEVA VERSIÓN INTERNACIONAL",
+    "file": "NUEVA VERSIÓN INTERNACIONAL.json"
+  },
+  {
+    "id": "OLPELA BAIBEL (TOK PISIN)",
+    "name": "OLPELA BAIBEL (TOK PISIN)",
+    "file": "OLPELA BAIBEL (TOK PISIN).json"
+  },
+  {
+    "id": "PAMPANGO BIBLE",
+    "name": "PAMPANGO BIBLE",
+    "file": "PAMPANGO BIBLE.json"
+  },
+  {
+    "id": "PAMPANGO BIBLE (Ing Biblia)",
+    "name": "PAMPANGO BIBLE (Ing Biblia)",
+    "file": "PAMPANGO BIBLE (Ing Biblia).json"
+  },
+  {
+    "id": "PANGASINENSE BIBLE",
+    "name": "PANGASINENSE BIBLE",
+    "file": "PANGASINENSE BIBLE.json"
+  },
+  {
+    "id": "PORTUGUESE NEW TESTAMENT_ EASY-TO-READ VERSION",
+    "name": "PORTUGUESE NEW TESTAMENT_ EASY-TO-READ VERSION",
+    "file": "PORTUGUESE NEW TESTAMENT_ EASY-TO-READ VERSION.json"
+  },
+  {
+    "id": "REINA-VALERA VERSION",
+    "name": "REINA-VALERA VERSION",
+    "file": "REINA-VALERA VERSION.json"
+  },
+  {
+    "id": "REINA-VALERA VERSION 1865",
+    "name": "REINA-VALERA VERSION 1865",
+    "file": "REINA-VALERA VERSION 1865.json"
+  },
+  {
+    "id": "REINA-VALERA VERSION 1960",
+    "name": "REINA-VALERA VERSION 1960",
+    "file": "REINA-VALERA VERSION 1960.json"
+  },
+  {
+    "id": "REINA-VALERA VERSION 2009",
+    "name": "REINA-VALERA VERSION 2009",
+    "file": "REINA-VALERA VERSION 2009.json"
+  },
+  {
+    "id": "REVISED CHINESE UNION VERSION - SIMPLIFIED",
+    "name": "REVISED CHINESE UNION VERSION - SIMPLIFIED",
+    "file": "REVISED CHINESE UNION VERSION - SIMPLIFIED.json"
+  },
+  {
+    "id": "REVISED CHINESE UNION VERSION - TRADITIONAL",
+    "name": "REVISED CHINESE UNION VERSION - TRADITIONAL",
+    "file": "REVISED CHINESE UNION VERSION - TRADITIONAL.json"
+  },
+  {
+    "id": "REVISED GENEVA TRANSLATION",
+    "name": "REVISED GENEVA TRANSLATION",
+    "file": "REVISED GENEVA TRANSLATION.json"
+  },
+  {
+    "id": "REVISED NEW KOREAN STANDARD VERSION",
+    "name": "REVISED NEW KOREAN STANDARD VERSION",
+    "file": "REVISED NEW KOREAN STANDARD VERSION.json"
+  },
+  {
+    "id": "REVISED STANDARD VERSION",
+    "name": "REVISED STANDARD VERSION",
+    "file": "REVISED STANDARD VERSION.json"
+  },
+  {
+    "id": "SAMBAYANANG PILIPINO",
+    "name": "SAMBAYANANG PILIPINO",
+    "file": "SAMBAYANANG PILIPINO.json"
+  },
+  {
+    "id": "SEPTUAGINT BIBLE",
+    "name": "SEPTUAGINT BIBLE",
+    "file": "SEPTUAGINT BIBLE.json"
+  },
+  {
+    "id": "STEPHANUS NEW TESTAMENT 1550",
+    "name": "STEPHANUS NEW TESTAMENT 1550",
+    "file": "STEPHANUS NEW TESTAMENT 1550.json"
+  },
+  {
+    "id": "SWAHILI BIBLE",
+    "name": "SWAHILI BIBLE",
+    "file": "SWAHILI BIBLE.json"
+  },
+  {
+    "id": "SWAHILI BIBLICA TRANSLATION",
+    "name": "SWAHILI BIBLICA TRANSLATION",
+    "file": "SWAHILI BIBLICA TRANSLATION.json"
+  },
+  {
+    "id": "SWEDISH BIBLE",
+    "name": "SWEDISH BIBLE",
+    "file": "SWEDISH BIBLE.json"
+  },
+  {
+    "id": "THE AMERICAN STANDARD VERSION",
+    "name": "THE AMERICAN STANDARD VERSION",
+    "file": "THE AMERICAN STANDARD VERSION.json"
+  },
+  {
+    "id": "THE COMPLETE JEWISH BIBLE",
+    "name": "THE COMPLETE JEWISH BIBLE",
+    "file": "THE COMPLETE JEWISH BIBLE.json"
+  },
+  {
+    "id": "THE HOLY NEW COVENANT",
+    "name": "THE HOLY NEW COVENANT",
+    "file": "THE HOLY NEW COVENANT.json"
+  },
+  {
+    "id": "THE MESSAGE",
+    "name": "THE MESSAGE",
+    "file": "THE MESSAGE.json"
+  },
+  {
+    "id": "THE PASSION TRANSLATION",
+    "name": "THE PASSION TRANSLATION",
+    "file": "THE PASSION TRANSLATION.json"
+  },
+  {
+    "id": "THIRD MILLENNIUM BIBLE",
+    "name": "THIRD MILLENNIUM BIBLE",
+    "file": "THIRD MILLENNIUM BIBLE.json"
+  },
+  {
+    "id": "TISCHENDORF'S 8TH EDITION NEW TESTAMENT",
+    "name": "TISCHENDORF'S 8TH EDITION NEW TESTAMENT",
+    "file": "TISCHENDORF'S 8TH EDITION NEW TESTAMENT.json"
+  },
+  {
+    "id": "TODAY'S NEW INTERNATIONAL VERSION",
+    "name": "TODAY'S NEW INTERNATIONAL VERSION",
+    "file": "TODAY'S NEW INTERNATIONAL VERSION.json"
+  },
+  {
+    "id": "TRADUÇÃO DO NOVO MUNDO (EDIÇÃO DE 1986)",
+    "name": "TRADUÇÃO DO NOVO MUNDO (EDIÇÃO DE 1986)",
+    "file": "TRADUÇÃO DO NOVO MUNDO (EDIÇÃO DE 1986).json"
+  },
+  {
+    "id": "TRADUÇÃO DO NOVO MUNDO (REVISÃO DE 2015)",
+    "name": "TRADUÇÃO DO NOVO MUNDO (REVISÃO DE 2015)",
+    "file": "TRADUÇÃO DO NOVO MUNDO (REVISÃO DE 2015).json"
+  },
+  {
+    "id": "TRADUCCIÓN DEL NUEVO MUNDO",
+    "name": "TRADUCCIÓN DEL NUEVO MUNDO",
+    "file": "TRADUCCIÓN DEL NUEVO MUNDO.json"
+  },
+  {
+    "id": "TREE OF LIFE VERSION",
+    "name": "TREE OF LIFE VERSION",
+    "file": "TREE OF LIFE VERSION.json"
+  },
+  {
+    "id": "TWENTIENTH CENTURY NEW TESTAMENT",
+    "name": "TWENTIENTH CENTURY NEW TESTAMENT",
+    "file": "TWENTIENTH CENTURY NEW TESTAMENT.json"
+  },
+  {
+    "id": "TWERƐ KRONKRON",
+    "name": "TWERƐ KRONKRON",
+    "file": "TWERƐ KRONKRON.json"
+  },
+  {
+    "id": "VERSIÓN MODERNA 1929",
+    "name": "VERSIÓN MODERNA 1929",
+    "file": "VERSIÓN MODERNA 1929.json"
+  },
+  {
+    "id": "WARAY BIBLE",
+    "name": "WARAY BIBLE",
+    "file": "WARAY BIBLE.json"
+  },
+  {
+    "id": "WESLEY VERSION",
+    "name": "WESLEY VERSION",
+    "file": "WESLEY VERSION.json"
+  },
+  {
+    "id": "WEYMOUTH NEW TESTAMENT",
+    "name": "WEYMOUTH NEW TESTAMENT",
+    "file": "WEYMOUTH NEW TESTAMENT.json"
+  },
+  {
+    "id": "WILLIAM TYNDALE'S TRANSLATION",
+    "name": "WILLIAM TYNDALE'S TRANSLATION",
+    "file": "WILLIAM TYNDALE'S TRANSLATION.json"
+  },
+  {
+    "id": "WORLD ENGLISH BIBLE",
+    "name": "WORLD ENGLISH BIBLE",
+    "file": "WORLD ENGLISH BIBLE.json"
+  },
+  {
+    "id": "WORLDWIDE ENGLISH",
+    "name": "WORLDWIDE ENGLISH",
+    "file": "WORLDWIDE ENGLISH.json"
+  },
+  {
+    "id": "WORSLEY VERSION",
+    "name": "WORSLEY VERSION",
+    "file": "WORSLEY VERSION.json"
+  },
+  {
+    "id": "WYCLIFFE BIBLE",
+    "name": "WYCLIFFE BIBLE",
+    "file": "WYCLIFFE BIBLE.json"
+  },
+  {
+    "id": "WYCLIFFE NEW TESTAMENT",
+    "name": "WYCLIFFE NEW TESTAMENT",
+    "file": "WYCLIFFE NEW TESTAMENT.json"
+  },
+  {
+    "id": "YOUNG'S LITERAL TRANSLATION",
+    "name": "YOUNG'S LITERAL TRANSLATION",
+    "file": "YOUNG'S LITERAL TRANSLATION.json"
+  }
+]

@@ -1,0 +1,76 @@
+{
+  "name": "bible-html5-app",
+  "version": "1.1.0",
+  "description": "MCGI Bible Broadcaster Pro — Windows desktop shell",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "electron .",
+    "dist:win": "npm run build",
+    "test:security": "node --test tools/bible-broadcast-live-v2-hardening-pack/test/security.test.js",
+    "security:scan": "node tools/bible-broadcast-live-v2-hardening-pack/scripts/preflight.js .",
+    "test": "node --test tools/bible-broadcast-live-v2-hardening-pack/test/security.test.js tools/bible-broadcast-live-v2-hardening-pack/test/server.test.js",
+    "test:server": "node --test tools/bible-broadcast-live-v2-hardening-pack/test/server.test.js",
+    "build": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "org.mcgi.biblebroadcast.pro",
+    "productName": "MCGI Bible Broadcaster Pro",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "server.js",
+      "portal-home.html",
+      "operator/**/*",
+      "highlighter/**/*",
+      "output/**/*",
+      "data/**/*",
+      "images/**/*",
+      "!**/backup/**",
+      "!**/bckup/**",
+      "!**/.DS_Store"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MCGI Bible Broadcaster Pro"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "commonjs"
+}

@@ -1,0 +1,63 @@
+name: Build Windows Desktop App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "desktop/**"
+      - "server.js"
+      - "package.json"
+      - ".github/workflows/windows-desktop-build.yml"
+      - "operator/**"
+      - "highlighter/**"
+      - "output/**"
+      - "data/**"
+      - "images/**"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "server.js"
+      - "package.json"
+      - ".github/workflows/windows-desktop-build.yml"
+      - "operator/**"
+      - "highlighter/**"
+      - "output/**"
+      - "data/**"
+      - "images/**"
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run security helper tests
+        run: npm run test:security
+
+      - name: Build Windows installer and portable app
+        run: npm run dist:win
+
+      - name: Upload Windows build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcgi-bible-broadcaster-pro-windows
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14

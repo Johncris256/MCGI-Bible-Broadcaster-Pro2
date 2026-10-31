@@ -1,0 +1,10 @@
+BIBLE BROADCAST LIVE V2 — FIX-ALL REPORT
+Date: 2026-10-30 12:50:59
+Project: C:\BibleBroadcast\bible-broadcast-live-v2
+Backup: C:\BibleBroadcast\bible-broadcast-live-v2\backups\FIX-ALL-V2-20261030-125055
+Result: PATCHED; syntax checks and npm test passed.
+Changes: consolidated authenticated server; real WebSocketServer; same-origin API writes; PIN login; allowlisted static serving; bounded JSON bodies; atomic session persistence; slot validation/lock checks; duplicate WebSocket+HTTP action suppression; legacy API aliases; HTTPS-aware WebSocket URL selection.
+Secrets: .bbl-access-pin and .bbl-session-secret are generated on first server start and ignored by Git.
+Access: every browser device enters the same server PIN once; the signed HttpOnly browser session lasts 12 hours.
+Next: npm start, then use the PIN shown in the server console on each operator/output/tablet browser.
+Exposure: keep this service on a trusted private LAN. Do not port-forward it to the public internet.

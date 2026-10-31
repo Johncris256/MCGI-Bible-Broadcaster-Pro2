@@ -1,0 +1,27 @@
+:root { color-scheme: dark; font-family: "Segoe UI", Arial, sans-serif; color: #edf4ff; background: #080e19; }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(ellipse at top left,rgba(8,145,178,.16),transparent 48%),#080e19; }
+.page { width: min(650px,calc(100% - 44px)); margin: 0 auto; padding: 35px 0 24px; }
+.eyebrow { color: #7dd3fc; font-size: 9px; font-weight: 800; letter-spacing: 1.55px; }
+header h1 { margin: 7px 0 5px; font-size: 32px; letter-spacing: -1px; }
+header p,.hint { color: #91a2b9; font-size: 12px; line-height: 1.6; }
+header p { margin: 0 0 23px; }
+.panel { padding: 18px; margin: 13px 0; border: 1px solid rgba(148,163,184,.16); border-radius: 12px; background: rgba(15,26,44,.85); }
+.panel-heading { display: flex; align-items: center; gap: 9px; padding-bottom: 13px; border-bottom: 1px solid rgba(148,163,184,.13); margin-bottom: 5px; font-size: 13px; }
+.panel-heading span:last-child { margin-left: auto; color: #9fb2ca; font-size: 10px; }
+.dot { width: 8px; height: 8px; background: #fbbf24; border-radius: 50%; }
+.dot.online { background: #34d399; }
+.info-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 11px; color: #91a2b9; }
+.info-row b,.info-row code { color: #d6e5f6; font-weight: 600; }
+code { font-family: Consolas,monospace; word-break: break-all; }
+h2 { margin: 7px 0; font-size: 15px; }
+.hint { margin: 5px 0 13px; }
+.url-box { display: flex; gap: 9px; align-items: center; padding: 9px; border-radius: 8px; border: 1px solid rgba(103,232,249,.2); background: rgba(3,12,22,.7); }
+.url-box code { flex: 1; color: #a5f3fc; font-size: 10px; }
+button { border-radius: 7px; padding: 9px 12px; border: 1px solid rgba(103,232,249,.3); background: rgba(8,145,178,.16); color: #a5f3fc; cursor: pointer; font-size: 10px; font-weight: 800; }
+button:hover { background: rgba(8,145,178,.3); }
+.secondary { margin-top: 10px; background: rgba(30,41,59,.65); border-color: rgba(148,163,184,.2); color: #d0dbea; }
+.path { display: block; padding: 10px; background: rgba(3,12,22,.65); border-radius: 7px; color: #c3d6ec; font-size: 10px; }
+.actions { display: flex; gap: 9px; justify-content: flex-end; margin-top: 18px; }
+.primary { background: linear-gradient(135deg,#0e7490,#0369a1); border-color: rgba(103,232,249,.3); color: white; }
+footer { color: #62748d; font-size: 10px; text-align: center; margin-top: 24px; }

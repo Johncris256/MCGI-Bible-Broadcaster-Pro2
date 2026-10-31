@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+
+<script id="PRISTINE_LAN_OUTPUT_RECEIVER">
+  (function() {
+    const registeredChannels = new Set();
+    const seenMsgIds = new Set();
+
+    const persistentHighlights = { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set() };
+    const slotVerseSignatures = ['', '', '', ''];
+
+    function getVisibleBoxes() {
+      const stage = document.getElementById('multiSlotStage') || document.body;
+      return Array.from(stage.querySelectorAll('.render-box, [id*="slot"], [class*="slot"]')).filter(b => {
+        const s = window.getComputedStyle(b);
+        return s.display !== 'none' && s.opacity !== '0';
+      });
+    }
+
+    function reapplyPersistentHighlights() {
+      const boxes = getVisibleBoxes();
+      boxes.forEach((box, sIdx) => {
+        if (sIdx > 3) return;
+
+        const textEl = box.querySelector('.verse-text, [class*="verse"], p');
+        const words = textEl ? Array.from(textEl.querySelectorAll('.ndi-word, span')).filter(w => w.innerText.trim()) : [];
+        
+        // PURE VERSE WORDS FINGERPRINT (Walang kinalaman ang focus o title)
+        const wordsSig = words.slice(0, 15).map(w => w.innerText.trim().toLowerCase()).join(' ');
+
+        if (wordsSig) {
+          // Kung talagang NAGBAGO ang mga salita ng talata:
+          if (slotVerseSignatures[sIdx] !== wordsSig) {
+            slotVerseSignatures[sIdx] = wordsSig;
+            persistentHighlights[sIdx].clear();
+          } else {
+            // Kung PAREHO ang mga salita: Panatilihin ang highlights kahit nagbago ang focus!
+            if (persistentHighlights[sIdx].size > 0) {
+              words.forEach((w, wIdx) => {
+                if (persistentHighlights[sIdx].has(wIdx)) {
+                  w.classList.add('active-highlight');
+                }
+              });
+            }
+          }
+        }
+      });
+    }
+
+    const OrigBC = window.BroadcastChannel;
+    window.BroadcastChannel = function(name) {
+      const instance = new OrigBC(name);
+      registeredChannels.add(instance);
+      instance.addEventListener('message', function(ev) {
+        if (ev.data && ev.data.__msgId) seenMsgIds.add(ev.data.__msgId);
+      });
+      return instance;
+    };
+    window.BroadcastChannel.prototype = OrigBC.prototype;
+
+    const es = new EventSource('/api/output-stream');
+    es.onmessage = function(e) {
+      if (!e.data) return;
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.__msgId) {
+          if (seenMsgIds.has(msg.__msgId)) return;
+          seenMsgIds.add(msg.__msgId);
+        }
+
+        if (msg.type === 'SET_SLOT_HIGHLIGHT') {
+          const sIdx = msg.slotIndex;
+          if (msg.isHighlighted) {
+            persistentHighlights[sIdx].add(msg.wordIndex);
+          } else {
+            persistentHighlights[sIdx].delete(msg.wordIndex);
+          }
+
+          const boxes = getVisibleBoxes();
+          const targetBox = boxes[sIdx];
+          if (targetBox) {
+            const words = Array.from(targetBox.querySelectorAll('.ndi-word, span')).filter(w => w.innerText.trim());
+            if (words[msg.wordIndex]) {
+              words[msg.wordIndex].classList.toggle('active-highlight', !!msg.isHighlighted);
+            }
+          }
+          return;
+        }
+
+        if (msg.type === 'CLEAR_ALL_HIGHLIGHTS' || msg.type === 'CLEAR_HIGHLIGHTS') {
+          for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+          const stage = document.getElementById('multiSlotStage') || document.body;
+          stage.querySelectorAll('.active-highlight').forEach(el => {
+            el.classList.remove('active-highlight');
+            el.removeAttribute('data-highlighted');
+          });
+          return;
+        }
+
+        registeredChannels.forEach(ch => {
+          const ev = new MessageEvent('message', { data: msg });
+          if (typeof ch.onmessage === 'function') {
+            try { ch.onmessage(ev); } catch(err) {}
+          }
+          try { ch.dispatchEvent(ev); } catch(err) {}
+        });
+
+        setTimeout(reapplyPersistentHighlights, 40);
+        setTimeout(reapplyPersistentHighlights, 120);
+      } catch(err) {}
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const stage = document.getElementById('multiSlotStage') || document.body;
+      const obs = new MutationObserver(() => {
+        reapplyPersistentHighlights();
+      });
+      obs.observe(stage, { childList: true, subtree: true });
+    });
+  })();
+</script>
+
+
+
+
+
+
+
+
+
+
+
+<style id="PRISTINE_ZERO_BAR_OUTPUT_STYLE">
+  :root {
+    --hl-font-color: #ffd700;
+    --hl-box-rgba: rgba(255, 215, 0, 0.85);
+    --hl-corner-radius: 6px;
+  }
+
+  /* Smooth Hide/Unhide Transition */
+  #multiSlotStage, .render-box {
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  body.hide-verse-box-active #multiSlotStage,
+  body.hide-verse-box-active .render-box {
+    opacity: 0 !important;
+    transform: scale(0.96) translateY(10px) !important;
+    pointer-events: none !important;
+  }
+
+  /* ZERO VERTICAL YELLOW BARS GUARANTEE */
+  html body #multiSlotStage .render-box .verse-text span,
+  html body #multiSlotStage .render-box .verse-text [class*="highlight"],
+  html body #multiSlotStage .render-box .verse-text [class*="ndi"],
+  html body [class*="highlight"] {
+    border: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  html body [class*="highlight"]::before,
+  html body [class*="highlight"]::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  /* 1. KARAOKE GLOW FONT ONLY */
+  [data-hl-mode="karaoke"] .active-highlight,
+  [data-hl-mode="karaoke"] span.active-highlight,
+  [data-hl-mode="karaoke"] .ndi-word.active-highlight {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--hl-font-color) !important;
+    text-shadow: 0 0 8px var(--hl-font-color), 0 0 16px var(--hl-font-color), 2px 2px 4px rgba(0,0,0,0.95) !important;
+    border: none !important;
+  }
+
+  /* 2. BOX HIGHLIGHT ROUNDED */
+  [data-hl-mode="box"] .active-highlight {
+    background-color: var(--hl-box-rgba) !important;
+    color: #ffffff !important;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.9) !important;
+    border-radius: 0px !important;
+  }
+  [data-hl-mode="box"] .active-highlight.highlight-start,
+  [data-hl-mode="box"] .ndi-word.active-highlight:first-child {
+    border-top-left-radius: var(--hl-corner-radius) !important;
+    border-bottom-left-radius: var(--hl-corner-radius) !important;
+  }
+  [data-hl-mode="box"] .active-highlight.highlight-end,
+  [data-hl-mode="box"] .ndi-word.active-highlight:last-child {
+    border-top-right-radius: var(--hl-corner-radius) !important;
+    border-bottom-right-radius: var(--hl-corner-radius) !important;
+  }
+
+  .ndi-word, .ndi-space, span {
+    color: #ffffff;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.9) !important;
+  }
+  .ndi-space { background: transparent !important; border: none !important; }
+</style>
+
+
+
+
+
+
+
+<style id="STABLE_OUTPUT_STYLE">
+  :root {
+    --hl-font-color: #ffd700;
+    --hl-box-rgba: rgba(255, 215, 0, 0.85);
+    --hl-corner-radius: 6px;
+  }
+
+  /* Smooth Hide/Unhide Transition */
+  #multiSlotStage, .render-box {
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  body.hide-verse-box-active #multiSlotStage,
+  body.hide-verse-box-active .render-box {
+    opacity: 0 !important;
+    transform: scale(0.96) translateY(10px) !important;
+    pointer-events: none !important;
+  }
+
+  /* ZERO VERTICAL BARS ANNIHILATION */
+  html body #multiSlotStage .render-box .verse-text span,
+  html body #multiSlotStage .render-box .verse-text [class*="highlight"],
+  html body #multiSlotStage .render-box .verse-text [class*="ndi"],
+  html body [class*="highlight"] {
+    border: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  html body [class*="highlight"]::before,
+  html body [class*="highlight"]::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  /* 1. KARAOKE GLOW FONT ONLY */
+  [data-hl-mode="karaoke"] .active-highlight,
+  [data-hl-mode="karaoke"] span.active-highlight,
+  [data-hl-mode="karaoke"] .ndi-word.active-highlight {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--hl-font-color) !important;
+    text-shadow: 0 0 8px var(--hl-font-color), 0 0 16px var(--hl-font-color), 2px 2px 4px rgba(0,0,0,0.95) !important;
+    border: none !important;
+  }
+
+  /* 2. BOX HIGHLIGHT ROUNDED */
+  [data-hl-mode="box"] .active-highlight {
+    background-color: var(--hl-box-rgba) !important;
+    color: #ffffff !important;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.9) !important;
+    border-radius: 0px !important;
+  }
+  [data-hl-mode="box"] .active-highlight.highlight-start,
+  [data-hl-mode="box"] .ndi-word.active-highlight:first-child {
+    border-top-left-radius: var(--hl-corner-radius) !important;
+    border-bottom-left-radius: var(--hl-corner-radius) !important;
+  }
+  [data-hl-mode="box"] .active-highlight.highlight-end,
+  [data-hl-mode="box"] .ndi-word.active-highlight:last-child {
+    border-top-right-radius: var(--hl-corner-radius) !important;
+    border-bottom-right-radius: var(--hl-corner-radius) !important;
+  }
+
+  /* Unhighlighted text default: White */
+  .ndi-word, .ndi-space, span {
+    color: #ffffff;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.9) !important;
+  }
+  .ndi-space { background: transparent !important; border: none !important; }
+</style>
+
+<script id="STABLE_OUTPUT_RECEIVER">
+  (function() {
+    function hexToRgba(hex, alpha) {
+      let c = (hex || '#ffd700').replace('#', '');
+      if (c.length === 3) c = c.split('').map(x => x + x).join('');
+      const num = parseInt(c, 16);
+      return 'rgba(' + ((num >> 16) & 255) + ',' + ((num >> 8) & 255) + ',' + (num & 255) + ',' + alpha + ')';
+    }
+
+    function applyConfig(mode, fCol, bCol, op, rad) {
+      document.documentElement.setAttribute('data-hl-mode', mode || 'karaoke');
+      document.documentElement.style.setProperty('--hl-font-color', fCol || '#ffd700');
+      document.documentElement.style.setProperty('--hl-box-rgba', hexToRgba(bCol || '#ffd700', op || 0.85));
+      document.documentElement.style.setProperty('--hl-corner-radius', (rad || 6) + 'px');
+    }
+
+    const savedMode = localStorage.getItem('hl_preset_mode') || 'karaoke';
+    const savedFont = localStorage.getItem('hl_font_color') || '#ffd700';
+    const savedBox = localStorage.getItem('hl_box_color') || '#ffd700';
+    const savedOp = localStorage.getItem('hl_box_opacity') || 0.85;
+    const savedRad = localStorage.getItem('hl_corner_radius') || 6;
+    applyConfig(savedMode, savedFont, savedBox, savedOp, savedRad);
+
+    try {
+      const bc = new BroadcastChannel('bible_projection_channel');
+      bc.onmessage = function(ev) {
+        if (!ev.data) return;
+        if (ev.data.type === 'UPDATE_HIGHLIGHT_CONFIG') {
+          applyConfig(ev.data.presetMode, ev.data.fontColor, ev.data.boxColor, ev.data.boxOpacity, ev.data.cornerRadius);
+        } else if (typeof ev.data.hideVerseBox !== 'undefined') {
+          document.body.classList.toggle('hide-verse-box-active', !!ev.data.hideVerseBox);
+        }
+      };
+    } catch(e) {}
+
+    window.addEventListener('storage', function() {
+      const mode = localStorage.getItem('hl_preset_mode') || 'karaoke';
+      const fontColor = localStorage.getItem('hl_font_color') || '#ffd700';
+      const boxColor = localStorage.getItem('hl_box_color') || '#ffd700';
+      const op = localStorage.getItem('hl_box_opacity') || 0.85;
+      const rad = localStorage.getItem('hl_corner_radius') || 6;
+      applyConfig(mode, fontColor, boxColor, op, rad);
+    });
+  })();
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <meta charset="UTF-8">
+  <title>Bible Output Screen</title>
+  <style>
+    :root {
+      --verse-anim-duration: 0.55s;
+      --highlight-anim-duration: 0.35s;
+      --highlight-bg-color: rgba(250, 204, 21, 0.5);
+      --title-verse-gap: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+      display: flex; justify-content: center; align-items: center;
+      background-color: transparent;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #multiSlotStage {
+      display: grid;
+      gap: 18px;
+      width: calc(100vw - 110px);
+      height: calc(100vh - 110px);
+      transition: width 0.2s ease, height 0.2s ease;
+    }
+    #multiSlotStage.mode-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+    #multiSlotStage.mode-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+    /* 3-Split Pyramid Layout: 2 on top, 1 centered at the bottom */
+    #multiSlotStage.mode-3 {
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-rows: 1fr 1fr !important;
+    }
+    #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+      grid-column: 1 / -1 !important;
+      width: calc(50% - 9px) !important;
+      justify-self: center !important;
+    }
+    #multiSlotStage.mode-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+    .render-box {
+      width: 100%; height: 100%;
+      background: rgba(10, 25, 60, 0.78);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; justify-content: flex-start;
+      overflow: hidden;
+      padding: 40px 48px;
+      perspective: 1600px;
+    }
+    .render-box.transparent-verse-box {
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    .reference-container {
+      text-align: left;
+      margin-bottom: var(--title-verse-gap, 18px);
+      flex-shrink: 0;
+    }
+    .reference-title {
+      font-size: 38px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+    .version-subtitle {
+      font-size: 20px;
+      font-weight: 700;
+      font-style: italic;
+      color: #facc15;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+    .verse-container {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      perspective: 1600px;
+      position: relative;
+    }
+    .verse-text {
+      line-height: 1.55;
+      color: #ffffff;
+      word-break: break-word;
+      font-size: 46px;
+    }
+    .ndi-word, .ndi-space {
+      display: inline !important;
+      padding: 2px 0px !important;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+      transition: background-color var(--highlight-anim-duration) ease,
+                  box-shadow var(--highlight-anim-duration) ease,
+                  color var(--highlight-anim-duration) ease;
+    }
+    .ndi-word.active-highlight, .ndi-space.active-highlight {
+      background-color: var(--highlight-bg-color) !important;
+      color: #ffffff !important;
+    }
+    .ndi-word.active-highlight.highlight-start.highlight-end {
+      box-shadow: -6px 0 0 0 var(--highlight-bg-color), 6px 0 0 0 var(--highlight-bg-color) !important;
+    }
+    .ndi-word.active-highlight.highlight-start:not(.highlight-end) {
+      box-shadow: -6px 0 0 0 var(--highlight-bg-color) !important;
+    }
+    .ndi-word.active-highlight.highlight-end:not(.highlight-start) {
+      box-shadow: 6px 0 0 0 var(--highlight-bg-color) !important;
+    }
+
+    @keyframes animFadeSlide {
+      0% { opacity: 0; transform: translateY(10px); filter: blur(1.5px); }
+      100% { opacity: 1; transform: translateY(0); filter: blur(0px); }
+    }
+    @keyframes animPageFlipNext {
+      0% { opacity: 0; transform-origin: left center; transform: perspective(1600px) rotateY(78deg) translateX(25px) scale(0.96); filter: brightness(0.65); }
+      100% { opacity: 1; transform-origin: left center; transform: perspective(1600px) rotateY(0deg) translateX(0) scale(1); filter: brightness(1); }
+    }
+    @keyframes animPageFlipPrev {
+      0% { opacity: 0; transform-origin: right center; transform: perspective(1600px) rotateY(-78deg) translateX(-25px) scale(0.96); filter: brightness(0.65); }
+      100% { opacity: 1; transform-origin: right center; transform: perspective(1600px) rotateY(0deg) translateX(0) scale(1); filter: brightness(1); }
+    }
+    @keyframes animVerticalFlip {
+      0% { opacity: 0; transform-origin: center top; transform: perspective(1400px) rotateX(-75deg) translateY(-10px); }
+      100% { opacity: 1; transform-origin: center top; transform: perspective(1400px) rotateX(0deg) translateY(0); }
+    }
+    @keyframes animZoomIn {
+      0% { opacity: 0; transform: scale(0.92); filter: blur(2px); }
+      100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+    }
+    .anim-fade-slide { animation: animFadeSlide var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-page-flip-next { animation: animPageFlipNext var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-page-flip-prev { animation: animPageFlipPrev var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-vertical-flip { animation: animVerticalFlip var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-zoom-in { animation: animZoomIn var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  </style>
+
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style id="SPLIT-CANVAS-ZOOM-16x9">
+  /* A slot is always authored on one 16:9 master canvas. Split modes zoom that
+     whole canvas down uniformly; the reference, version, verse, padding and
+     card shape therefore keep their proportions. */
+  #multiSlotStage {
+    display: grid !important;
+    gap: 18px !important;
+    position: relative !important;
+    margin: 0 !important;
+    aspect-ratio: 16 / 9 !important;
+    overflow: visible !important;
+  }
+  #multiSlotStage.mode-1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  #multiSlotStage.mode-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  }
+  #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+  #multiSlotStage > .render-box {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #multiSlotStage .slot-canvas {
+    width: var(--canvas-width) !important;
+    height: var(--canvas-height) !important;
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+    padding: 40px 48px;
+    background: rgba(10, 25, 60, 0.78);
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    perspective: 1600px;
+    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scale(var(--slot-scale, 1)) scaleY(var(--slot-zoom-y, 1));
+    transform-origin: center center;
+  }
+  #multiSlotStage > .render-box.transparent-verse-box .slot-canvas {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  #multiSlotStage .slot-canvas .verse-container {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+  #multiSlotStage .slot-canvas .verse-text {
+    width: 100% !important;
+    max-width: 100% !important;
+    line-height: 1.55 !important;
+    overflow: hidden !important;
+  }
+
+  /* 1 Full, 3-Split and 4-Grid anchored vertical zoom:
+     treat the full 3-card composition as one frame. The top edge stays pinned;
+     Zoom Y only expands/compresses content below that top edge. */
+  #multiSlotStage.mode-1,
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 {
+    /* Treat each layout as one frame: pin its top edge and scale downward. */
+    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scaleY(var(--slot-zoom-y, 1)) !important;
+    transform-origin: 50% 0% !important;
+  }
+  #multiSlotStage.mode-1 .slot-canvas,
+  #multiSlotStage.mode-3 .slot-canvas,
+  #multiSlotStage.mode-4 .slot-canvas {
+    /* Keep each card's own fit; apply vertical Zoom Y only once to the whole frame. */
+    transform: scale(var(--slot-scale, 1)) !important;
+  }
+
+</style>
+
+<style id="ALL-MODE-PROPORTIONAL-TEXT">
+  /* Keep reference and translation labels fixed in size and anchored at the
+     upper-left of each Verse Box, independent of Zoom Y. */
+  #multiSlotStage.mode-1 .reference-text-guard,
+  #multiSlotStage.mode-2 .reference-text-guard,
+  #multiSlotStage.mode-3 .reference-text-guard,
+  #multiSlotStage.mode-4 .reference-text-guard {
+    transform: scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform-origin: top left !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Keep verse glyphs proportional in every layout. Below 100% Zoom Y, the
+     JS fit calculation reduces font-size uniformly before this Y compensation. */
+  #multiSlotStage.mode-1 .verse-text-guard,
+  #multiSlotStage.mode-2 .verse-text-guard,
+  #multiSlotStage.mode-3 .verse-text-guard,
+  #multiSlotStage.mode-4 .verse-text-guard {
+    transform: scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform-origin: top center !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="multiSlotStage" class="mode-1">
+    <div class="render-box" data-slot-box="0">
+      <div class="slot-canvas">
+      <div class="reference-container">
+        <div class="reference-text-guard">
+          <div class="reference-title">GENESIS 1:1</div>
+          <div class="version-subtitle">ANG DATING BIBLIA</div>
+        </div>
+      </div>
+      <div class="verse-container">
+        <div class="verse-text-guard">
+          <div class="verse-text">Nang pasimula ay nilikha ng Dios ang langit at ang lupa.</div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+  <script src="output.js?v=20261101-layout-defaults-v3"></script>
+
+
+
+
+
+
+
+
+
+</body>
+</html>

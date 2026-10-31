@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self';">
+  <title>Settings · MCGI Bible Broadcaster Pro</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main class="page">
+    <header><div class="eyebrow">SYSTEM CONFIGURATION</div><h1>Settings</h1><p>Local desktop app at broadcast server information.</p></header>
+    <section class="panel">
+      <div class="panel-heading"><span class="dot"></span><strong>Local Server</strong><span id="serverStatus">Checking…</span></div>
+      <div class="info-row"><span>Port</span><b id="port">3300</b></div>
+      <div class="info-row"><span>Local address</span><code id="localUrl">—</code></div>
+      <div class="info-row"><span>LAN IPv4</span><code id="lanIp">—</code></div>
+    </section>
+    <section class="panel">
+      <div class="eyebrow">BROWSER SOURCE</div>
+      <h2>vMix / OBS Live Output</h2>
+      <p class="hint">Gamitin ang URL na ito sa Browser Input ng vMix/OBS. Siguraduhing magkakonekta sa parehong LAN ang vMix at computer na nagpapatakbo ng app.</p>
+      <div class="url-box"><code id="outputUrl">Loading…</code><button id="copyUrl">Copy</button></div>
+      <button id="openOutput" class="secondary">Open Output in Browser</button>
+    </section>
+    <section class="panel">
+      <div class="eyebrow">LOCAL APP DATA</div>
+      <h2>Data and uploads location</h2>
+      <p class="hint">Ang live session at uploaded backgrounds ay ise-save sa folder na ito, hindi sa read-only app package.</p>
+      <code id="dataDirectory" class="path">—</code>
+    </section>
+    <section class="actions"><button id="openSecondDisplay" class="primary">Open Output on Second Display</button><button id="closeSettings" class="secondary">Close Settings</button></section>
+    <footer>MCGI Bible Broadcaster Pro · Desktop Edition</footer>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

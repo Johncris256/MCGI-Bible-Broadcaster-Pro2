@@ -1,0 +1,14 @@
+{
+  "name": "bible-broadcast-live-v2-hardening-pack",
+  "version": "2.0.0-alpha.1",
+  "private": true,
+  "description": "Security/stability helpers and migration tests for a separate Bible Broadcast Live V2 working copy",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test",
+    "preflight": "node scripts/preflight.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

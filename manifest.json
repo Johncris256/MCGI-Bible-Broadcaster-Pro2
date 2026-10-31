@@ -1,0 +1,20 @@
+{
+  "source_archive": "zip.zip supplied in conversation",
+  "base_sha256": {
+    "operator/index.html": "dd1613a5c20068b02ad1073b5d3311509569aea400353263369f832bd48cb053",
+    "operator/operator.js": "e03b3be138a3bd52a1da30db6fd80b2190ec7d1bb73df2459a953dabfb90da65",
+    "output/output.js": "5ef7d4ae51abca5730291aa1e1d7f123ea1da37e16fe74228466f0db6fd58180",
+    "output/output.html": "f21913c70bb338378a940a45ef690b39df3fba8939bceec22fdb62d66fe25b62"
+  },
+  "features": [
+    "per-layout letter spacing",
+    "per-layout line spacing",
+    "per-layout title-to-verse gap",
+    "per-layout inner box padding",
+    "per-layout max verse font size",
+    "editable content-length-to-font-size map",
+    "Output typography application",
+    "Highlighter typography helper"
+  ],
+  "highlighter_html_in_uploaded_archive": false
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="tl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;">
+  <title>MCGI Bible Broadcaster Pro</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-mark">B</div>
+      <div class="brand-copy">
+        <div class="eyebrow">MCGI · BROADCAST SUITE</div>
+        <h1>Bible Broadcaster <span>Pro</span></h1>
+      </div>
+      <div class="server-pill"><i></i><span id="serverStatus">Starting local server…</span></div>
+    </header>
+
+    <section class="intro">
+      <div class="intro-copy">
+        <p class="eyebrow">CONTROL CENTER</p>
+        <h2>Magandang araw.</h2>
+        <p class="subhead">Piliin ang module na gusto mong buksan. Mananatiling bukas ang Dashboard habang hiwa-hiwalay na tumatakbo ang bawat station.</p>
+      </div>
+      <div class="version-chip" id="versionLabel">Desktop Edition</div>
+    </section>
+
+    <section class="module-grid" aria-label="Broadcast modules">
+      <button class="module-card operator" data-module="operator">
+        <span class="card-icon">🎛️</span>
+        <span class="card-tag">CONTROL</span>
+        <strong>Operator</strong>
+        <span class="card-description">Main Bible operator, four-slot workspace, verses, translations, backgrounds, and display controls.</span>
+        <span class="card-action">Open Operator <b>↗</b></span>
+      </button>
+
+      <button class="module-card output" data-module="output">
+        <span class="card-icon">📺</span>
+        <span class="card-tag">ON-AIR DISPLAY</span>
+        <strong>Output</strong>
+        <span class="card-description">Clean live projection feed. Open in its own window and move it to your second monitor.</span>
+        <span class="card-action">Open Output <b>↗</b></span>
+      </button>
+
+       <div class="connection-panel highlighter-link-panel">
+        <div class="connection-copy">
+          <span class="eyebrow">HIGHLIGHTER STATION</span>
+          <strong>Highlighter URL</strong>
+          <p id="highlighterUrl">Loading network address…</p>
+        </div>
+        <button id="copyHighlighter" class="copy-button" type="button">Copy URL</button>
+      </div>
+
+      <button class="module-card settings" data-module="settings">
+        <span class="card-icon">⚙️</span>
+        <span class="card-tag">SYSTEM</span>
+        <strong>Settings</strong>
+        <span class="card-description">Local server status, LAN address, vMix Browser Source URL, and app data location.</span>
+        <span class="card-action">Open Settings <b>↗</b></span>
+      </button>
+    </section>
+
+    <section class="connection-panels" aria-label="Quick access URLs">
+      <div class="connection-panel">
+        <div class="connection-copy">
+          <span class="eyebrow">VMIX / OBS BROWSER SOURCE</span>
+          <strong>Live Output URL</strong>
+          <p id="outputUrl">Loading network address…</p>
+        </div>
+        <button id="copyOutput" class="copy-button" type="button">Copy URL</button>
+      </div>
+
+
+    </section>
+
+    <footer>
+      <span>MCGI Bible Broadcaster Pro</span>
+      <span>Local broadcast server · Port <b id="portLabel">3300</b></span>
+    </footer>
+  </main>
+  <script src="dashboard.js"></script>
+</body>
+</html>

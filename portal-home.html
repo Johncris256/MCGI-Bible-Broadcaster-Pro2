@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<script>
+/* LIVE-MEMORY-CLIENT-SYNC */
+(function() {
+  const origSetItem = Storage.prototype.setItem;
+  let pendingBatch = {};
+  let sendTimer = null;
+
+  // 1. HYDRATE ONCE: Pagka-bukas o pag-refresh lang ng page kukunin ang Server Memory!
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/live-session')
+      .then(r => r.json())
+      .then(session => {
+        if (!session || !session.localStorageBackup) return;
+        window.__APPLYING_REMOTE_STORAGE__ = true;
+        let lastKey = null, lastVal = null;
+        for (const [k, v] of Object.entries(session.localStorageBackup)) {
+          if (localStorage.getItem(k) !== v) {
+            try { origSetItem.call(localStorage, k, v); } catch (e) {}
+            lastKey = k;
+            lastVal = v;
+          }
+        }
+        if (lastKey !== null) {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: lastKey,
+            newValue: lastVal,
+            storageArea: window.localStorage
+          }));
+        }
+        window.__APPLYING_REMOTE_STORAGE__ = false;
+      })
+      .catch(() => {});
+  });
+
+  // 2. WRITE-BEHIND: Tahimik na i-save sa Server Memory ang iniwan ng Operator
+  // Walang pabalik na SSE StorageEvent loop para hindi mag-double trigger ang animations!
+  Storage.prototype.setItem = function(key, value) {
+    const strVal = String(value);
+    const prevVal = this.getItem(key);
+    origSetItem.apply(this, arguments);
+
+    if (this === window.localStorage && !window.__APPLYING_REMOTE_STORAGE__) {
+      if (prevVal === strVal) return;
+      pendingBatch[key] = strVal;
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(() => {
+        const batchToSend = pendingBatch;
+        pendingBatch = {};
+        fetch('/api/live-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchToSend })
+        }).catch(() => {});
+      }, 100);
+    }
+  };
+})();
+</script>
+
+<script>
+/* WEB-LINK-INTERCEPTOR */
+(function() {
+  const cleanUrl = (u) => {
+    if (typeof u !== 'string') return u;
+    return u
+      .replace(/^https?:\/\/(localhost|127\.0\.0\.1):3300/i, window.location.origin)
+      .replace(/^https?:\/\/[^/]+:3300/i, window.location.origin);
+  };
+  const origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string') input = cleanUrl(input);
+    return origFetch.call(this, input, init);
+  };
+  const OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    if (typeof url === 'string') {
+      const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      url = url
+        .replace(/^wss?:\/\/(localhost|127\.0\.0\.1):3300/i, wsProto + window.location.host)
+        .replace(/^wss?:\/\/[^/]+:3300/i, wsProto + window.location.host);
+      if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+        url = 'wss://' + url.slice(5);
+      }
+    }
+    return protocols ? new OrigWS(url, protocols) : new OrigWS(url);
+  };
+  window.WebSocket.prototype = OrigWS.prototype;
+  window.WebSocket.OPEN = OrigWS.OPEN;
+  window.WebSocket.CLOSED = OrigWS.CLOSED;
+})();
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCGI Bible Broadcast System — Main Home Page</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1e293b 0%, #0b111e 70%);
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .portal-container { max-width: 980px; width: 100%; }
+    .portal-header { text-align: center; margin-bottom: 28px; }
+    .portal-badge {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .portal-title { font-size: 30px; font-weight: 800; margin: 0 0 6px 0; color: #ffffff; }
+    .portal-sub { font-size: 14px; color: #94a3b8; margin: 0; }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .role-card {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .role-card:hover {
+      transform: translateY(-3px);
+      border-color: #38bdf8;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    }
+    .role-card.admin-card {
+      border-color: #eab308;
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+    }
+    .role-icon { font-size: 28px; margin-bottom: 10px; }
+    .role-name { font-size: 18px; font-weight: 800; margin: 0 0 6px 0; color: #f8fafc; }
+    .role-desc { font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 0 0 18px 0; }
+    .role-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .btn-admin { background: #facc15; color: #0f172a; }
+    .btn-admin:hover { background: #fde047; }
+    .btn-emerald { background: #059669; color: #ffffff; }
+    .btn-emerald:hover { background: #047857; }
+    .btn-purple { background: #7c3aed; color: #ffffff; }
+    .btn-purple:hover { background: #6d28d9; }
+    .slot-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .slot-quick-btn {
+      padding: 8px 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #38bdf8;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .slot-quick-btn:hover { background: #334155; border-color: #38bdf8; color: #ffffff; }
+    .portal-footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="portal-container">
+    <div class="portal-header">
+      <div class="portal-badge">Online Multi-Operator Broadcast Hub</div>
+      <h1 class="portal-title">MCGI Bible Operator Broadcast System</h1>
+      <p class="portal-sub">Piliin ang iyong role o station para mag-connect sa live session</p>
+    </div>
+
+    <div class="cards-grid">
+      <div class="role-card admin-card">
+        <div>
+          <div class="role-icon">🎛️</div>
+          <h2 class="role-name" style="color:#facc15;">Main Operator (Admin)</h2>
+          <p class="role-desc">
+            Full 4-Slot Permanent Workspace. Nakikita kung sinong Slot Operators ang nakakonekta, nakakapagpalit ng Display Mode (1/2/3/4), Background, Font, at Highlights.
+          </p>
+        </div>
+        <a href="/operator/index.html" class="role-btn btn-admin">Buksan ang Main Operator ▶</a>
+      </div>
+
+      <div class="role-card">
+        <div>
+          <div class="role-icon">🕹️</div>
+          <h2 class="role-name" style="color:#38bdf8;">Slot Operators (1 - 4)</h2>
+          <p class="role-desc">
+            Slave controller para sa nakatalagang Slot. Mag-log in gamit ang iyong pangalan para mag-pilot ng talata, Next/Back, at Translation nang hindi nagagalaw ang BG o Highlights.
+          </p>
+        </div>
+        <div class="slot-quick-grid">
+          <a href="/operator/slotoperator.html?slot=1" class="slot-quick-btn">🕹️ Pilot Slot 1</a>
+          <a href="/operator/slotoperator.html?slot=2" class="slot-quick-btn">🕹️ Pilot Slot 2</a>
+          <a href="/operator/slotoperator.html?slot=3" class="slot-quick-btn">🕹️ Pilot Slot 3</a>
+          <a href="/operator/slotoperator.html?slot=4" class="slot-quick-btn">🕹️ Pilot Slot 4</a>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div>
+          <div class="role-icon">🖍️</div>
+          <h2 class="role-name" style="color:#a78bfa;">Highlighter Station</h2>
+          <p class="role-desc">
+            Dedicated station para sa pag-highlight at pag-clear ng mga salita sa alinmang Slot (1-4) nang real-time habang nagsasalita ang mangangaral.
+          </p>
+        </div>
+        <a href="/highlighter/" class="role-btn btn-purple">Buksan ang Highlighter ▶</a>
+      </div>
+
+      <div class="role-card">
+        <div>
+          <div class="role-icon">📺</div>
+          <h2 class="role-name" style="color:#4ade80;">Live Broadcast Output</h2>
+          <p class="role-desc">
+            Clean HTML5 Output feed para sa vMix, OBS Browser Source, o Projector Display. Sumusunod nang live sa 1 Full, 2 Split, 3 Split, at 4 Grid modes.
+          </p>
+        </div>
+        <a href="/output/output.html" target="_blank" class="role-btn btn-emerald">Buksan ang Live Output ↗</a>
+      </div>
+    </div>
+
+    <div class="portal-footer">
+      Tip: Maaaring buksan ang link na ito sa iba't ibang laptop, tablet, o phone na nakakonekta sa parehong Local Network (Wi-Fi / LAN).
+    </div>
+  </div>
+</body>
+</html>

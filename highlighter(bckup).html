@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<style id="tablet-touch-swipe-style">
+  /* Full Touchscreen Tablet Optimization */
+  html, body {
+    overscroll-behavior: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: none !important;
+  }
+  /* Siguraduhing malapad at walang patay na espasyo sa pagitan ng mga salita pag dini-drag */
+  span[data-index], span.word, .word-item, .hl-word, [data-word], .verse-word {
+    touch-action: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    cursor: pointer;
+  }
+  button, select, input, a, .btn {
+    touch-action: manipulation !important;
+  }
+</style>
+<script>
+/* Replaced by the unified Pointer Events gesture controller in the main highlighter script. */
+</script>
+<style id="highlighter-autofit-style">
+  /* Siguraduhing walang scrollbar at sakto sa screen ng tablet */
+  html, body {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+  .autofit-verse-box {
+    overflow: hidden !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: center !important;
+    justify-content: center !important;
+  }
+  /* Pigilan din ang flicker sa mismong highlighter screen kapag nag-click o nag-clear */
+  .suppress-hl-flicker, .suppress-hl-flicker * {
+    animation: none !important;
+    transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease !important;
+  }
+</style>
+<script>/* Disabled legacy global auto-fit: each slot is fitted independently in renderMirrorState(). */</script>
+
+<script>
+/* LIVE-MEMORY-CLIENT-SYNC */
+(function() {
+  const origSetItem = Storage.prototype.setItem;
+  let pendingBatch = {};
+  let sendTimer = null;
+
+  // 1. HYDRATE ONCE: Pagka-bukas o pag-refresh lang ng page kukunin ang Server Memory!
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/live-session')
+      .then(r => r.json())
+      .then(session => {
+        if (!session || !session.localStorageBackup) return;
+        window.__APPLYING_REMOTE_STORAGE__ = true;
+        let lastKey = null, lastVal = null;
+        for (const [k, v] of Object.entries(session.localStorageBackup)) {
+          if (localStorage.getItem(k) !== v) {
+            try { origSetItem.call(localStorage, k, v); } catch (e) {}
+            lastKey = k;
+            lastVal = v;
+          }
+        }
+        if (lastKey !== null) {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: lastKey,
+            newValue: lastVal,
+            storageArea: window.localStorage
+          }));
+        }
+        window.__APPLYING_REMOTE_STORAGE__ = false;
+      })
+      .catch(() => {});
+  });
+
+  // 2. WRITE-BEHIND: Tahimik na i-save sa Server Memory ang iniwan ng Operator
+  // Walang pabalik na SSE StorageEvent loop para hindi mag-double trigger ang animations!
+  Storage.prototype.setItem = function(key, value) {
+    const strVal = String(value);
+    const prevVal = this.getItem(key);
+    origSetItem.apply(this, arguments);
+
+    if (this === window.localStorage && !window.__APPLYING_REMOTE_STORAGE__) {
+      if (prevVal === strVal) return;
+      pendingBatch[key] = strVal;
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(() => {
+        const batchToSend = pendingBatch;
+        pendingBatch = {};
+        fetch('/api/live-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchToSend })
+        }).catch(() => {});
+      }, 100);
+    }
+  };
+})();
+</script>
+
+<script>
+/* WEB-LINK-INTERCEPTOR */
+(function() {
+  const cleanUrl = (u) => {
+    if (typeof u !== 'string') return u;
+    return u
+      .replace(/^https?:\/\/(localhost|127\.0\.0\.1):3300/i, window.location.origin)
+      .replace(/^https?:\/\/[^/]+:3300/i, window.location.origin);
+  };
+  const origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string') input = cleanUrl(input);
+    return origFetch.call(this, input, init);
+  };
+  const OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    if (typeof url === 'string') {
+      const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      url = url
+        .replace(/^wss?:\/\/(localhost|127\.0\.0\.1):3300/i, wsProto + window.location.host)
+        .replace(/^wss?:\/\/[^/]+:3300/i, wsProto + window.location.host);
+      if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+        url = 'wss://' + url.slice(5);
+      }
+    }
+    return protocols ? new OrigWS(url, protocols) : new OrigWS(url);
+  };
+  window.WebSocket.prototype = OrigWS.prototype;
+  window.WebSocket.OPEN = OrigWS.OPEN;
+  window.WebSocket.CLOSED = OrigWS.CLOSED;
+})();
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>Live Output Mirror — Highlighter</title>
+  <style>
+    :root {
+      --hl-font-color: #ffd700;
+      --hl-box-rgba: rgba(255, 215, 0, 0.85);
+      --hl-corner-radius: 6px;
+      --title-verse-gap: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      min-height: 0;
+      overflow: hidden !important;
+      overscroll-behavior: none;
+      background-color: #0b0f19;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      touch-action: none !important;
+    }
+
+    /* Same grid geometry as output/output.html; footer is reserved below. */
+    #mirrorViewport {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      height: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+      padding: 16px;
+    }
+
+    #multiSlotStage {
+      display: grid;
+      gap: 18px;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+      transition: width 0.2s ease, height 0.2s ease;
+    }
+    #multiSlotStage.mode-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+    #multiSlotStage.mode-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+    /* 3-Split Pyramid Layout: 2 on top, 1 centered at the bottom */
+    #multiSlotStage.mode-3 {
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-rows: 1fr 1fr !important;
+    }
+    #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+      grid-column: 1 / -1 !important;
+      width: calc(50% - 9px) !important;
+      justify-self: center !important;
+    }
+    #multiSlotStage.mode-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+    .render-box {
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 25, 60, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
+      padding: 40px 48px;
+      min-width: 0;
+      min-height: 0;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .render-box.transparent-verse-box {
+      background: rgba(15, 23, 42, 0.45) !important;
+      border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+    }
+
+    body.hide-verse-box-active #multiSlotStage {
+      opacity: 0.25;
+    }
+
+    .reference-container {
+      text-align: left;
+      margin-bottom: var(--title-verse-gap, 18px);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .reference-title {
+      font-size: 34px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+
+    .version-subtitle {
+      font-size: 18px;
+      font-weight: 700;
+      font-style: italic;
+      color: #facc15;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+
+    .verse-container {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden !important;
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      touch-action: none;
+    }
+
+    .verse-text {
+      line-height: 1.32;
+      color: #ffffff;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      font-size: 42px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    /* INTERACTIVE WORDS FOR EMPHASIS */
+    .ndi-word, .ndi-space {
+      display: inline !important;
+      padding: 0.08em 0.045em !important;
+      color: #ffffff;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
+      transition: all 0.15s ease;
+    }
+
+    .ndi-word {
+      cursor: pointer;
+      border-radius: 6px;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .ndi-word:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* KARAOKE & BOX EMPHASIS STYLES (MIRRORS OUTPUT.HTML) */
+    [data-hl-mode="karaoke"] .ndi-word.active-highlight {
+      background: rgba(255, 215, 0, 0.15) !important;
+      color: var(--hl-font-color) !important;
+      text-shadow: 0 0 8px var(--hl-font-color), 0 0 16px var(--hl-font-color), 2px 2px 4px rgba(0,0,0,0.95) !important;
+      border-bottom: 3px solid var(--hl-font-color) !important;
+    }
+
+    [data-hl-mode="box"] .ndi-word.active-highlight,
+    [data-hl-mode="box"] .ndi-space.active-highlight {
+      background-color: var(--hl-box-rgba) !important;
+      color: #ffffff !important;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.9) !important;
+      border-radius: 4px !important;
+    }
+
+    /* BOTTOM HIGHLIGHTER CONTROL BAR */
+    footer {
+      height: 54px;
+      background: rgba(15, 23, 42, 0.96);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pulse-dot {
+      width: 11px;
+      height: 11px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #22c55e;
+    }
+
+    .brand-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #ffd700;
+      letter-spacing: 0.5px;
+    }
+
+    .mode-badge {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-kuya {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-kuya:active { transform: scale(0.95); }
+
+    .btn-clear {
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #fca5a5 !important;
+      border-color: rgba(239, 68, 68, 0.45) !important;
+    }
+
+    /* Device profiles change touch ergonomics, not the broadcast slot order. */
+    body[data-device-profile="pc"] #mirrorViewport { padding: 24px; }
+    body[data-device-profile="tablet"] #mirrorViewport { padding: 12px; }
+    body[data-device-profile="smartphone"] #mirrorViewport { padding: 6px; }
+    body[data-device-profile="smartphone"] footer { height: 42px; min-height: 42px; padding: 0 7px; }
+    body[data-device-profile="smartphone"] .brand-title { display: none; }
+    body[data-device-profile="smartphone"] .mode-badge { font-size: 0.65rem; padding: 2px 6px; }
+    body[data-device-profile="smartphone"] .controls-right { gap: 5px; }
+    body[data-device-profile="smartphone"] .btn-kuya { padding: 6px 8px; font-size: 0.7rem; gap: 3px; }
+    body[data-device-profile="smartphone"] #btnClearHighlights span,
+    body[data-device-profile="smartphone"] #btnFullscreen span { display: none; }
+
+    #devicePicker {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(2, 6, 23, 0.94);
+      backdrop-filter: blur(12px);
+    }
+    #devicePicker.open { display: flex; }
+    .device-picker-card {
+      width: min(440px, 100%);
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      background: #111827;
+      color: #f8fafc;
+      box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    }
+    .device-picker-card h2 { font-size: 1.35rem; margin-bottom: 8px; }
+    .device-picker-card p { color: #94a3b8; font-size: .92rem; line-height: 1.5; margin-bottom: 18px; }
+    .device-choice {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      margin-top: 9px;
+      color: #f8fafc;
+      text-align: left;
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .device-choice small { display: block; color: #94a3b8; font-size: .78rem; font-weight: 400; margin-top: 3px; }
+    .device-choice:focus-visible, .device-choice:hover { outline: 2px solid #38bdf8; }
+    #btnDeviceProfile { white-space: nowrap; }
+
+    @media (max-width: 700px) {
+      footer { padding: 0 8px; }
+      .status-group { gap: 6px; }
+      .brand-title { font-size: .75rem; }
+      .mode-badge { font-size: .65rem; padding: 2px 7px; }
+      .controls-right { gap: 5px; }
+      .btn-kuya { padding: 6px 9px; font-size: .72rem; }
+    }
+  </style>
+
+<style id="SPLIT-CANVAS-ZOOM-16x9">
+  /* Same logical 16:9 master canvas and zoom ratio as output/output.html. */
+  #mirrorViewport { display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; }
+  #multiSlotStage {
+    display:grid !important;
+    gap:18px !important;
+    position:relative !important;
+    margin:0 !important;
+    aspect-ratio:16 / 9 !important;
+    overflow:visible !important;
+    flex:0 0 auto !important;
+  }
+  #multiSlotStage.mode-1 { grid-template-columns:minmax(0,1fr) !important; grid-template-rows:minmax(0,1fr) !important; }
+  #multiSlotStage.mode-2 { grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-template-rows:minmax(0,1fr) !important; }
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 { grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-template-rows:repeat(2,minmax(0,1fr)) !important; }
+  #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    justify-self:stretch !important;
+  }
+  #multiSlotStage > .render-box {
+    width:100% !important;
+    height:100% !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    position:relative !important;
+    overflow:visible !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+  }
+  #multiSlotStage .slot-canvas {
+    width:var(--canvas-width) !important;
+    height:var(--canvas-height) !important;
+    flex:0 0 auto !important;
+    max-width:none !important;
+    max-height:none !important;
+    box-sizing:border-box !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+    overflow:hidden !important;
+    padding:40px 48px;
+    background:rgba(10,25,60,0.78);
+    border:0;
+    border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    transform:scale(var(--slot-scale,1));
+    transform-origin:center center;
+  }
+  #multiSlotStage > .render-box.transparent-verse-box .slot-canvas {
+    background:rgba(15,23,42,0.45) !important;
+    border:1px dashed rgba(255,255,255,0.15) !important;
+    box-shadow:none !important;
+  }
+  #multiSlotStage .reference-container { margin-bottom:var(--title-verse-gap,18px) !important; }
+  #multiSlotStage .reference-title { font-size:38px; }
+  #multiSlotStage .version-subtitle { font-size:19px; }
+  #multiSlotStage .verse-container {
+    flex:1 1 auto !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    overflow:hidden !important;
+  }
+  #multiSlotStage .verse-text {
+    width:100% !important;
+    max-width:100% !important;
+    line-height:1.55 !important;
+    word-break:break-word !important;
+    overflow-wrap:normal !important;
+    overflow:hidden !important;
+  }
+  #multiSlotStage .ndi-word,
+  #multiSlotStage .ndi-space {
+    padding:2px 0 !important;
+    /* Do not animate inherited font-size: the slot fitter measures immediately. */
+    transition:color 0.15s, background-color 0.15s, text-shadow 0.15s !important;
+  }
+
+  /* Device profiles may change the control bar and outer breathing room only.
+     The broadcast card itself is never resized independently of the output. */
+  body[data-device-profile="tablet"] #multiSlotStage { gap:18px !important; }
+  body[data-device-profile="smartphone"] #multiSlotStage { gap:18px !important; }
+  body[data-device-profile="tablet"] .ndi-word,
+  body[data-device-profile="smartphone"] .ndi-word { padding:2px 0 !important; }
+  body[data-device-profile="smartphone"] .reference-container { margin-bottom:var(--title-verse-gap,18px) !important; }
+</style>
+
+</head>
+<body data-hl-mode="karaoke">
+
+  <div id="mirrorViewport">
+    <div id="multiSlotStage" class="mode-1"></div>
+  </div>
+
+  <footer>
+    <div class="status-group">
+      <div class="pulse-dot" id="dotStatus"></div>
+      <span class="brand-title">OUTPUT MIRROR HIGHLIGHTER</span>
+      <span class="mode-badge" id="modeBadge">1 FULL</span>
+      <span id="hiddenWarning" style="display:none; color:#f87171; font-size:0.8rem; font-weight:700;">⚠️ OUTPUT HIDDEN</span>
+    </div>
+
+    <div class="controls-right">
+      <button class="btn-kuya" id="btnDeviceProfile" title="Change device profile">Device: Auto</button>
+      <button class="btn-kuya btn-clear" id="btnClearHighlights">
+        <span>🧹</span> Clear Highlights
+      </button>
+      <button class="btn-kuya" id="btnFullscreen">
+        <span>⛶</span> Fullscreen
+      </button>
+    </div>
+  </footer>
+
+  <div id="devicePicker" role="dialog" aria-modal="true" aria-labelledby="devicePickerTitle">
+    <div class="device-picker-card">
+      <h2 id="devicePickerTitle">Saan gagamitin ang Highlighter?</h2>
+      <p>Pumili ng device profile para i-adjust ang font fitting, spacing, at laki ng touch targets. Maaari mo itong palitan anumang oras.</p>
+      <button class="device-choice" data-profile="pc"><span aria-hidden="true">🖥️</span><span>PC / Laptop<small>Mouse and keyboard · wider layout</small></span></button>
+      <button class="device-choice" data-profile="tablet"><span aria-hidden="true">📱</span><span>Tablet<small>Large touch targets · comfortable spacing</small></span></button>
+      <button class="device-choice" data-profile="smartphone"><span aria-hidden="true">📲</span><span>Smartphone<small>Compact controls · optimized for portrait screens</small></span></button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const stage = document.getElementById('multiSlotStage');
+      const dotStatus = document.getElementById('dotStatus');
+      const modeBadge = document.getElementById('modeBadge');
+      const hiddenWarning = document.getElementById('hiddenWarning');
+
+      let lastOutputData = null;
+      let lastDisplayMode = 1;
+
+      // Persistent memory para sa 4 na slots (hindi mabubura kahit mag-switch ng mode)
+      const persistentHighlights = { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set() };
+      const slotVerseSignatures = ['', '', '', ''];
+      const lastOperatorHighSig = ['', '', '', ''];
+
+      let isPointerDown = false;
+      let activeDragSlot = null;
+      let dragTargetHighlightState = true;
+      let dragLastWordIndex = null;
+      let dragHoldTimer = null;
+      let dragHoldActivated = false;
+      let dragStartPoint = null;
+      let activePointerId = null;
+      const HOLD_TO_DRAG_MS = 190;
+      const MOVE_CANCEL_PX = 9;
+
+      // Ask once per browser tab/session; device preference is intentionally not broadcast.
+      const PROFILE_KEY = 'bbl_hl_device_profile';
+      function readSavedProfile() {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + PROFILE_KEY + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+      function saveProfile(profile) {
+        document.cookie = PROFILE_KEY + '=' + encodeURIComponent(profile) + '; Max-Age=31536000; Path=/; SameSite=Lax';
+      }
+      const picker = document.getElementById('devicePicker');
+      const profileButton = document.getElementById('btnDeviceProfile');
+      function applyDeviceProfile(profile) {
+        const valid = ['pc', 'tablet', 'smartphone'].includes(profile) ? profile : 'tablet';
+        document.body.dataset.deviceProfile = valid;
+        try { saveProfile(valid); } catch (e) {}
+        profileButton.textContent = 'Device: ' + (valid === 'pc' ? 'PC' : valid === 'tablet' ? 'Tablet' : 'Phone');
+        requestAnimationFrame(() => { if (lastOutputData) renderMirrorState(lastOutputData); });
+      }
+      function openDevicePicker() { picker.classList.add('open'); }
+      picker.querySelectorAll('[data-profile]').forEach(button => {
+        button.addEventListener('click', () => {
+          applyDeviceProfile(button.dataset.profile);
+          picker.classList.remove('open');
+        });
+      });
+      profileButton.addEventListener('click', openDevicePicker);
+      let savedProfile = null;
+      try { savedProfile = readSavedProfile(); } catch (e) {}
+      if (savedProfile) applyDeviceProfile(savedProfile);
+      else openDevicePicker();
+
+      function setWordHighlight(slotIdx, wordIdx, highlighted) {
+        const set = persistentHighlights[slotIdx];
+        const had = set.has(wordIdx);
+        if (highlighted) set.add(wordIdx); else set.delete(wordIdx);
+        if (had === highlighted) return;
+        const box = stage.children[slotIdx];
+        if (box) updateWordVisuals(box, slotIdx);
+        sendHighlightAction(slotIdx, wordIdx, highlighted);
+      }
+
+      function activateHoldDrag() {
+        if (!isPointerDown || !dragStartPoint || dragHoldActivated) return;
+        dragHoldActivated = true;
+        const { slotIdx, wordIdx } = dragStartPoint;
+        dragTargetHighlightState = !persistentHighlights[slotIdx].has(wordIdx);
+        dragLastWordIndex = wordIdx;
+        setWordHighlight(slotIdx, wordIdx, dragTargetHighlightState);
+      }
+
+      function finishPointerGesture() {
+        if (dragHoldTimer) clearTimeout(dragHoldTimer);
+        dragHoldTimer = null;
+        isPointerDown = false;
+        activeDragSlot = null;
+        dragLastWordIndex = null;
+        dragStartPoint = null;
+        dragHoldActivated = false;
+        activePointerId = null;
+      }
+
+      document.addEventListener('pointerup', finishPointerGesture, { passive: true });
+      document.addEventListener('pointercancel', finishPointerGesture, { passive: true });
+
+      let bcLive = null;
+      try {
+        bcLive = new BroadcastChannel('bible_live_stream');
+      } catch (e) {}
+
+      function sendHighlightAction(slotIdx, wordIdx, isHighlighted) {
+        const payload = {
+          type: 'SET_SLOT_HIGHLIGHT',
+          slotIndex: slotIdx,
+          wordIndex: wordIdx,
+          isHighlighted: isHighlighted,
+          __msgId: Date.now() + '_' + Math.random().toString(36).substr(2, 7)
+        };
+
+        fetch('/api/output-broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        fetch('/api/pastor-tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        // I-sync pabalik sa localStorage payload para hindi ma-overwrite ng Operator
+        syncHighlightsToStorage();
+      }
+
+      function syncHighlightsToStorage() {
+        try {
+          const raw = localStorage.getItem('bible_live_payload');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.slots)) {
+              for (let i = 0; i < 4; i++) {
+                if (parsed.slots[i]) {
+                  parsed.slots[i].highlighted = Array.from(persistentHighlights[i]);
+                }
+              }
+              if (parsed.slots[0]) parsed.highlighted = parsed.slots[0].highlighted;
+              localStorage.setItem('bible_live_payload', JSON.stringify(parsed));
+              localStorage.setItem('bible_live_timestamp', String(Date.now()));
+              if (bcLive) bcLive.postMessage(parsed);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Re-broadcast ang lahat ng active highlights sa Output kapag nagpalit ng Display Mode
+      function rebroadcastActiveHighlights(visibleCount) {
+        for (let sIdx = 0; sIdx < visibleCount; sIdx++) {
+          persistentHighlights[sIdx].forEach(wIdx => {
+            const payload = {
+              type: 'SET_SLOT_HIGHLIGHT',
+              slotIndex: sIdx,
+              wordIndex: wIdx,
+              isHighlighted: true,
+              __msgId: Date.now() + '_reb_' + sIdx + '_' + wIdx + '_' + Math.random().toString(36).substr(2, 4)
+            };
+            fetch('/api/output-broadcast', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }).catch(() => {});
+          });
+        }
+        syncHighlightsToStorage();
+      }
+
+      function updateWordVisuals(boxEl, sIdx) {
+        if (!boxEl) return;
+        const words = boxEl.querySelectorAll('.ndi-word');
+        const spaces = boxEl.querySelectorAll('.ndi-space');
+        const highSet = persistentHighlights[sIdx];
+
+        words.forEach((w, idx) => {
+          w.classList.toggle('active-highlight', highSet.has(idx));
+        });
+        spaces.forEach((sp) => {
+          const idx = parseInt(sp.dataset.spaceAfter, 10);
+          sp.classList.toggle('active-highlight', highSet.has(idx) && highSet.has(idx + 1));
+        });
+      }
+
+      function adjustMirrorFontSize(boxEl, baseMaxSize, displayMode, fontsObj) {
+        const container = boxEl.querySelector('.verse-container');
+        const text = boxEl.querySelector('.verse-text');
+        const refTitle = boxEl.querySelector('.reference-title');
+        const verSub = boxEl.querySelector('.version-subtitle');
+        if (!container || !text) return;
+
+        // Identical 1-Full typography baseline to Output. Split zoom is applied
+        // once to the entire 16:9 .slot-canvas, not again to individual fonts.
+        const baseRefSize = (fontsObj && parseInt(fontsObj.refSize, 10)) || 38;
+        const baseVerSize = (fontsObj && parseInt(fontsObj.verSize, 10)) || 19;
+        if (refTitle) refTitle.style.fontSize = baseRefSize + 'px';
+        if (verSub) verSub.style.fontSize = baseVerSize + 'px';
+
+        text.style.lineHeight = '1.55';
+        text.style.width = '100%';
+        text.style.maxHeight = '100%';
+        text.style.overflow = 'hidden';
+
+        const fitKey = [
+          text.dataset.verseKey || '', Number(baseMaxSize) || 46,
+          baseRefSize, baseVerSize, container.clientWidth, container.clientHeight
+        ].join('|');
+        // Highlight changes do not invalidate this key, so another slot's
+        // highlight cannot cause this slot's typography to jump.
+        if (text.dataset.fontFitKey === fitKey && text.dataset.fittedFontSize) return;
+
+        let low = 14;
+        let high = Math.max(14, Number(baseMaxSize) || 46);
+        let best = 14;
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          text.style.fontSize = mid + 'px';
+          if (text.scrollHeight <= container.clientHeight + 1 &&
+              text.scrollWidth <= container.clientWidth + 1) {
+            best = mid;
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+        text.style.fontSize = best + 'px';
+        text.dataset.fittedFontSize = String(best);
+        text.dataset.fontFitKey = fitKey;
+      }
+
+      function fitMirrorStageTo16x9(displayMode, outerMargin) {
+        const margin = Math.max(0, Number(outerMargin) || 0);
+        const availableWidth = Math.max(160, window.innerWidth - margin * 2);
+        const availableHeight = Math.max(90, window.innerHeight - margin * 2);
+        const width = Math.min(availableWidth, availableHeight * 16 / 9);
+        const height = width * 9 / 16;
+        stage.style.width = width + 'px';
+        stage.style.height = height + 'px';
+        stage.style.setProperty('--canvas-width', width + 'px');
+        stage.style.setProperty('--canvas-height', height + 'px');
+
+        const gap = parseFloat(getComputedStyle(stage).gap) || 18;
+        let scale = 1;
+        if (displayMode === 2) {
+          scale = Math.min((width - gap) / (2 * width), 1);
+        } else if (displayMode === 3 || displayMode === 4) {
+          scale = Math.min((width - gap) / (2 * width), (height - gap) / (2 * height), 1);
+        }
+        stage.style.setProperty('--slot-scale', String(Math.max(0.05, scale)));
+      }
+
+      function applyTypography(boxEl, fonts) {
+        const outRefEl = boxEl.querySelector('.reference-title');
+        const outVerEl = boxEl.querySelector('.version-subtitle');
+        const outContentEl = boxEl.querySelector('.verse-text');
+        const defaultFont = 'Arial, Helvetica, sans-serif';
+        const f = fonts || {};
+
+        if (outRefEl) {
+          outRefEl.style.fontFamily = f.ref || defaultFont;
+          outRefEl.style.fontWeight = f.refBold ? '700' : '400';
+          outRefEl.style.fontStyle = f.refItalic ? 'italic' : 'normal';
+        }
+        if (outVerEl) {
+          outVerEl.style.fontFamily = f.version || defaultFont;
+          outVerEl.style.fontWeight = f.verBold ? '700' : '400';
+          outVerEl.style.fontStyle = f.verItalic ? 'italic' : 'normal';
+        }
+        if (outContentEl) {
+          outContentEl.style.fontFamily = f.content || defaultFont;
+          outContentEl.style.fontWeight = f.contentBold !== false ? '700' : '400';
+          outContentEl.style.fontStyle = f.contentItalic ? 'italic' : 'normal';
+        }
+      }
+
+      // MAIN RENDER FUNCTION (MODE-SWITCH IMMUNE)
+      function renderMirrorState(data) {
+        if (!data || !Array.isArray(data.slots)) return;
+        lastOutputData = data;
+
+        const viewport = document.getElementById('mirrorViewport');
+        if (data.bg === 'transparent') {
+          viewport.style.backgroundColor = '#0b0f19';
+          viewport.style.backgroundImage = 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 0)';
+          viewport.style.backgroundSize = '24px 24px';
+        } else if (data.bg && data.bg.startsWith('url')) {
+          viewport.style.backgroundImage = data.bg;
+          viewport.style.backgroundSize = 'cover';
+          viewport.style.backgroundPosition = 'center';
+        } else if (data.bg) {
+          viewport.style.backgroundColor = data.bg;
+          viewport.style.backgroundImage = 'none';
+        }
+
+        if (typeof data.hideVerseBox !== 'undefined') {
+          document.body.classList.toggle('hide-verse-box-active', !!data.hideVerseBox);
+          hiddenWarning.style.display = data.hideVerseBox ? 'inline' : 'none';
+        }
+
+        const s = data.settings || {};
+        const pad = (s.boxPadding !== undefined) ? parseInt(s.boxPadding, 10) : 40;
+        const outerMargin = (s.screenMargin !== undefined) ? parseInt(s.screenMargin, 10) : 55;
+        const hideBoxBg = Boolean(s.hideBoxBg);
+        const baseMaxFont = parseInt(s.maxFontSize, 10) || 46;
+        const topGapPx = (s.topGap !== undefined) ? parseInt(s.topGap, 10) : 18;
+        const displayMode = parseInt(data.displayMode, 10) || 1;
+        const modeChanged = (displayMode !== lastDisplayMode);
+        lastDisplayMode = displayMode;
+
+        document.documentElement.style.setProperty('--title-verse-gap', topGapPx + 'px');
+
+        const modeLabels = { 1: '1 FULL (LIVE)', 2: '2 SPLIT (LIVE)', 3: '3 SPLIT (LIVE)', 4: '4 GRID (LIVE)' };
+        modeBadge.textContent = modeLabels[displayMode] || (displayMode + ' MODE');
+
+        stage.className = 'mode-' + displayMode;
+        fitMirrorStageTo16x9(displayMode, outerMargin);
+
+        // I-check muna ang LAHAT ng 4 slots para sa pagbabago ng salita kahit nakatago pa ang iba
+        data.slots.slice(0, 4).forEach((slotData, idx) => {
+          const wordsArr = slotData.words || [];
+          const wordsSig = wordsArr.join(' ').trim().toLowerCase();
+          const opHighArr = Array.isArray(slotData.highlighted) ? slotData.highlighted : [];
+          const opHighSig = opHighArr.slice().sort((a,b) => a - b).join(',');
+
+          if (wordsSig && slotVerseSignatures[idx] !== wordsSig) {
+            // Tunay na nagpalit ng verse sa slot na ito -> i-reset at gamitin ang highlights ng bagong verse
+            slotVerseSignatures[idx] = wordsSig;
+            persistentHighlights[idx] = new Set(opHighArr);
+            lastOperatorHighSig[idx] = opHighSig;
+          } else {
+            // HINDI nagbago ang verse! Huwag burahin ang highlights kapag nag-switch lang ng mode.
+            // Kung nagdagdag ng highlight ang Operator mismo sa PC niya, isama natin:
+            if (opHighSig !== lastOperatorHighSig[idx]) {
+              lastOperatorHighSig[idx] = opHighSig;
+              if (opHighArr.length > 0) {
+                opHighArr.forEach(wIdx => persistentHighlights[idx].add(wIdx));
+              }
+            }
+          }
+        });
+
+        const visibleSlots = data.slots.slice(0, displayMode);
+
+        while (stage.children.length > visibleSlots.length) stage.removeChild(stage.lastChild);
+        while (stage.children.length < visibleSlots.length) {
+          const box = document.createElement('div');
+          box.className = 'render-box';
+          box.innerHTML = `
+            <div class="slot-canvas">
+              <div class="reference-container">
+                <div>
+                  <div class="reference-title"></div>
+                  <div class="version-subtitle"></div>
+                </div>
+                <span class="slot-indicator" style="font-size:12px; color:#94a3b8; font-weight:700;"></span>
+              </div>
+              <div class="verse-container">
+                <div class="verse-text"></div>
+              </div>
+            </div>
+          `;
+          stage.appendChild(box);
+        }
+
+        visibleSlots.forEach((slotData, sIdx) => {
+          const boxEl = stage.children[sIdx];
+          const canvasEl = boxEl.querySelector('.slot-canvas');
+          if (canvasEl) {
+            canvasEl.style.padding = `${pad}px ${pad + 8}px`;
+            canvasEl.style.borderRadius = outerMargin === 0 && displayMode === 1 ? '0px' : '14px';
+          }
+          boxEl.classList.toggle('transparent-verse-box', hideBoxBg);
+
+          const refEl = boxEl.querySelector('.reference-title');
+          const verEl = boxEl.querySelector('.version-subtitle');
+          const indEl = boxEl.querySelector('.slot-indicator');
+          const contentEl = boxEl.querySelector('.verse-text');
+
+          refEl.textContent = slotData.reference || '';
+          verEl.textContent = slotData.version || '';
+          if (indEl) indEl.textContent = 'SLOT ' + (sIdx + 1);
+
+          const wordsArr = slotData.words || [];
+          const hasSpaces = slotData.hasSpaces !== false;
+
+          const newVerseKey = (slotData.reference || '') + '|' + (slotData.version || '') + '|' + wordsArr.join(' ');
+          if (contentEl.dataset.verseKey !== newVerseKey) {
+            contentEl.dataset.verseKey = newVerseKey;
+            contentEl.innerHTML = '';
+
+            wordsArr.forEach((word, wIdx) => {
+              const span = document.createElement('span');
+              span.textContent = word;
+              span.classList.add('ndi-word');
+              span.dataset.idx = wIdx;
+
+              span.dataset.slotIndex = sIdx;
+
+              contentEl.appendChild(span);
+
+              if (wIdx < wordsArr.length - 1 && hasSpaces) {
+                const space = document.createElement('span');
+                space.textContent = ' ';
+                space.classList.add('ndi-space');
+                space.dataset.spaceAfter = wIdx;
+                contentEl.appendChild(space);
+              }
+            });
+          }
+
+          // Laging i-apply ang persistentHighlights para hindi mawala sa mode switch!
+          updateWordVisuals(boxEl, sIdx);
+          applyTypography(boxEl, data.fonts);
+          // Deferred until the browser has completed the final slot/canvas layout.
+        });
+
+        // Fit each slot only after its 16:9 canvas has completed layout.
+        // This prevents an early measurement from caching an oversized font.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (lastOutputData !== data) return;
+          visibleSlots.forEach((slotData, idx) => {
+            const boxEl = stage.children[idx];
+            if (boxEl) adjustMirrorFontSize(boxEl, baseMaxFont, displayMode, data.fonts);
+          });
+        }));
+
+        // Kung nagpalit ng mode ang Operator, ibalik agad sa Output screen ang mga highlights
+        if (modeChanged) {
+          setTimeout(() => rebroadcastActiveHighlights(displayMode), 60);
+        }
+      }
+
+      // Tap = toggle one word. Press-and-hold (~190ms), then drag = paint/erase a word range.
+      // Pointer events work consistently with mouse, pen, Android touch, and iOS touch.
+      function getWordAtPoint(x, y) {
+        const el = document.elementFromPoint(x, y);
+        return el && el.closest ? el.closest('.ndi-word') : null;
+      }
+
+      function applyDragToWord(wordEl) {
+        if (!dragHoldActivated || !wordEl) return;
+        const slotIdx = Number(wordEl.dataset.slotIndex);
+        const wordIdx = Number(wordEl.dataset.idx);
+        if (slotIdx !== activeDragSlot || !Number.isInteger(wordIdx)) return;
+        if (dragLastWordIndex === null || wordIdx === dragLastWordIndex) return;
+
+        // Fill any words skipped by a fast swipe; word indexes are the canonical reading order.
+        const from = dragLastWordIndex;
+        const step = wordIdx > from ? 1 : -1;
+        for (let idx = from + step; step > 0 ? idx <= wordIdx : idx >= wordIdx; idx += step) {
+          setWordHighlight(slotIdx, idx, dragTargetHighlightState);
+        }
+        dragLastWordIndex = wordIdx;
+      }
+
+      stage.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const wordEl = e.target.closest && e.target.closest('.ndi-word');
+        if (!wordEl) return;
+        e.preventDefault();
+        isPointerDown = true;
+        activePointerId = e.pointerId;
+        activeDragSlot = Number(wordEl.dataset.slotIndex);
+        dragStartPoint = { slotIdx: activeDragSlot, wordIdx: Number(wordEl.dataset.idx), x: e.clientX, y: e.clientY };
+        dragHoldActivated = false;
+        dragLastWordIndex = null;
+        if (dragHoldTimer) clearTimeout(dragHoldTimer);
+        dragHoldTimer = setTimeout(activateHoldDrag, HOLD_TO_DRAG_MS);
+      }, { passive: false });
+
+      document.addEventListener('pointermove', (e) => {
+        if (!isPointerDown || e.pointerId !== activePointerId) return;
+        if (!dragHoldActivated && dragStartPoint) {
+          const dx = e.clientX - dragStartPoint.x;
+          const dy = e.clientY - dragStartPoint.y;
+          if (Math.hypot(dx, dy) > MOVE_CANCEL_PX && e.pointerType === 'touch') {
+            if (dragHoldTimer) clearTimeout(dragHoldTimer);
+            dragHoldTimer = null;
+          }
+        }
+        if (!dragHoldActivated) return;
+        if (e.cancelable) e.preventDefault();
+        applyDragToWord(getWordAtPoint(e.clientX, e.clientY));
+      }, { passive: false });
+
+      stage.addEventListener('pointerup', (e) => {
+        if (!isPointerDown || e.pointerId !== activePointerId) return;
+        if (dragHoldTimer) clearTimeout(dragHoldTimer);
+        dragHoldTimer = null;
+        if (!dragHoldActivated && dragStartPoint) {
+          const { slotIdx, wordIdx } = dragStartPoint;
+          setWordHighlight(slotIdx, wordIdx, !persistentHighlights[slotIdx].has(wordIdx));
+        }
+        finishPointerGesture();
+      });
+
+      // CLEAR ALL HIGHLIGHTS
+      document.getElementById('btnClearHighlights').addEventListener('click', () => {
+        for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+        stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+
+        const payload = {
+          type: 'CLEAR_ALL_HIGHLIGHTS',
+          __msgId: Date.now() + '_clear'
+        };
+
+        fetch('/api/output-broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        fetch('/api/pastor-tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        syncHighlightsToStorage();
+      });
+
+      // FULLSCREEN BUTTON
+      document.getElementById('btnFullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      // 1. SSE Output Stream Listener (LAN / Tablet)
+      function connectOutputStream() {
+        const es = new EventSource('/api/output-stream');
+        es.onopen = () => {
+          dotStatus.style.background = '#22c55e';
+          dotStatus.style.boxShadow = '0 0 10px #22c55e';
+        };
+        es.onmessage = (e) => {
+          if (!e.data) return;
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'SET_SLOT_HIGHLIGHT') {
+              const sIdx = msg.slotIndex;
+              if (msg.isHighlighted) persistentHighlights[sIdx].add(msg.wordIndex);
+              else persistentHighlights[sIdx].delete(msg.wordIndex);
+              if (stage.children[sIdx]) updateWordVisuals(stage.children[sIdx], sIdx);
+              return;
+            }
+            if (msg.type === 'CLEAR_ALL_HIGHLIGHTS' || msg.type === 'CLEAR_HIGHLIGHTS') {
+              for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+              stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+              return;
+            }
+            if (typeof msg.hideVerseBox !== 'undefined' && !msg.slots) {
+              document.body.classList.toggle('hide-verse-box-active', !!msg.hideVerseBox);
+              hiddenWarning.style.display = msg.hideVerseBox ? 'inline' : 'none';
+              return;
+            }
+            if (Array.isArray(msg.slots)) {
+              renderMirrorState(msg);
+            }
+          } catch (err) {}
+        };
+        es.onerror = () => {
+          dotStatus.style.background = '#ef4444';
+          dotStatus.style.boxShadow = '0 0 10px #ef4444';
+          es.close();
+          setTimeout(connectOutputStream, 2000);
+        };
+      }
+      connectOutputStream();
+
+      // 2. WebSocket Listener
+      function connectLiveSocket() {
+        const wsHost = window.location.host || 'localhost:5000';
+        const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + wsHost);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data.slots)) renderMirrorState(data);
+          } catch (e) {}
+        };
+        ws.onclose = () => setTimeout(connectLiveSocket, 2000);
+        ws.onerror = () => ws.close();
+      }
+      connectLiveSocket();
+
+      // 3. LocalStorage & BroadcastChannel Fallbacks
+      if (bcLive) {
+        bcLive.onmessage = (e) => {
+          if (e.data && Array.isArray(e.data.slots)) renderMirrorState(e.data);
+        };
+      }
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'bible_live_payload' && e.newValue) {
+          try { renderMirrorState(JSON.parse(e.newValue)); } catch (err) {}
+        }
+      });
+
+      const savedInit = localStorage.getItem('bible_live_payload');
+      if (savedInit) {
+        try { renderMirrorState(JSON.parse(savedInit)); } catch (err) {}
+      }
+
+      let fitResizeFrame = 0;
+      const fitObserver = new ResizeObserver(() => {
+        cancelAnimationFrame(fitResizeFrame);
+        fitResizeFrame = requestAnimationFrame(() => {
+          if (lastOutputData) renderMirrorState(lastOutputData);
+        });
+      });
+      fitObserver.observe(document.getElementById('mirrorViewport'));
+      window.addEventListener('resize', () => {
+        if (lastOutputData) renderMirrorState(lastOutputData);
+      });
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => { if (lastOutputData) renderMirrorState(lastOutputData); }, 180);
+      });
+    })();
+  </script>
+</body>
+</html>

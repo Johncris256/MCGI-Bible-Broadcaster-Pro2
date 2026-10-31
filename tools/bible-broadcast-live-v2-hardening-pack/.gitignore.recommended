@@ -1,0 +1,18 @@
+# Dependencies and generated state
+node_modules/
+.wrangler/
+
+# Secrets / local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime state / logs
+live-session-cache.json
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+*.tmp

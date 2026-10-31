@@ -1,0 +1,55 @@
+node_modules/
+
+# Bible Broadcast Live V2 local/runtime files
+.wrangler/
+.env
+.env.*
+!.env.example
+live-session-cache.json
+*.log
+/backups/
+# V2 local access/session secrets (never commit)
+.bbl-access-pin
+.bbl-session-secret
+.bbl-*.tmp
+
+
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+
+# Local dependencies and caches
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+
+# Temporary backups
+.backup-*/
+_backups/
+*.bak
+*.bak-*
+
+# Temporary update packages
+_font-cap-sync/
+_font100_unlocked/
+_typography_v2_updated/
+updated-files/
+payload/
+
+# Development patches and installers
+*.patch
+fix-*.ps1
+install-*.ps1
+APPLY-*.ps1
+
+# Temporary installation notes
+README-FIX-*.txt
+README-MAX-*.txt
+README-MCGI-*.txt
+README-PER-*.txt
+README-TYPOGRAPHY-*.txt
+README-VERSE-*.txt

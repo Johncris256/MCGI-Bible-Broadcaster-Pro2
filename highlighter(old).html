@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<style id="tablet-touch-swipe-style">
+  /* Full Touchscreen Tablet Optimization */
+  html, body {
+    overscroll-behavior: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: none !important;
+  }
+  /* Siguraduhing malapad at walang patay na espasyo sa pagitan ng mga salita pag dini-drag */
+  span[data-index], span.word, .word-item, .hl-word, [data-word], .verse-word {
+    touch-action: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    cursor: pointer;
+  }
+  button, select, input, a, .btn {
+    touch-action: manipulation !important;
+  }
+</style>
+<script>
+/* ANDROID-TABLET-TOUCH-SWIPE-BRIDGE */
+(function() {
+  let isDragging = false;
+  let touchedInCurrentSwipe = new Set();
+  let dragMode = null; // 'paint' o 'erase'
+  let startX = 0, startY = 0;
+
+  function isUIControl(el) {
+    if (!el || !el.closest) return false;
+    return Boolean(el.closest('button, select, input, textarea, a, .btn, .toolbar, .controls, header, nav, [onclick*="clear" i], [id*="clear" i]'));
+  }
+
+  // Kukunin lahat ng clickable word elements sa loob ng verse container
+  function getAllWordElements() {
+    const specific = document.querySelectorAll(
+      'span[data-index], span[data-word], span.word, .word-item, .hl-word, .verse-word, #verse-box span, #verseBox span, #verse-container span, .verse-box span, .verse-container span, #words-container span, #content span'
+    );
+    if (specific.length > 0) return Array.from(specific);
+
+    // Fallback: Hanapin ang lahat ng leaf spans/divs na may salita sa loob ng main container
+    return Array.from(document.querySelectorAll('span, mark')).filter(el => {
+      return el.children.length === 0 && (el.innerText || '').trim().length > 0 && !isUIControl(el);
+    });
+  }
+
+  // Hanapin ang salita sa (x, y) kahit tumama ang daliri sa pagitan/margin ng salita (14px tolerance radius)
+  function findWordAtPoint(x, y) {
+    const direct = document.elementFromPoint(x, y);
+    if (direct && !isUIControl(direct)) {
+      const words = getAllWordElements();
+      const matched = words.find(w => w === direct || w.contains(direct));
+      if (matched) return matched;
+    }
+
+    // Bounding-box proximity check para sa makapal na daliri sa tablet
+    const words = getAllWordElements();
+    let bestWord = null;
+    let bestDist = 18; // pixels radius tolerance
+
+    for (const w of words) {
+      const r = w.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const dx = Math.max(r.left - x, 0, x - r.right);
+      const dy = Math.max(r.top - y, 0, y - r.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestWord = w;
+      }
+    }
+    return bestWord;
+  }
+
+  // Suriin kung naka-highlight na ba ang salita
+  function isWordHighlighted(el) {
+    if (!el) return false;
+    const cls = (el.className || '').toLowerCase();
+    if (/active|highlight|selected|marked|hl-|on/.test(cls)) return true;
+    if (el.getAttribute('data-highlighted') === 'true' || el.getAttribute('data-active') === 'true') return true;
+    const bg = window.getComputedStyle(el).backgroundColor;
+    return Boolean(bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && bg !== 'rgb(255, 255, 255)' && bg !== 'rgb(0, 0, 0)');
+  }
+
+  // Trigger lahat ng posibleng paraan kung paano nagha-highlight ang desktop code
+  function triggerWordAction(wordEl, clientX, clientY, isFirstWord) {
+    if (!wordEl || touchedInCurrentSwipe.has(wordEl)) return;
+
+    // Kung naka-set na ang dragMode ('paint' vs 'erase'), huwag galawin kung nasa tamang state na
+    const currentlyHL = isWordHighlighted(wordEl);
+    if (dragMode === 'paint' && currentlyHL && !isFirstWord) {
+      touchedInCurrentSwipe.add(wordEl);
+      return;
+    }
+    if (dragMode === 'erase' && !currentlyHL && !isFirstWord) {
+      touchedInCurrentSwipe.add(wordEl);
+      return;
+    }
+
+    touchedInCurrentSwipe.add(wordEl);
+
+    const beforeHL = isWordHighlighted(wordEl);
+
+    // 1. Subukan ang mousedown + mouseenter + mouseover (para sa drag-based desktop code)
+    const evInit = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: clientX,
+      clientY: clientY,
+      button: 0,
+      buttons: 1,
+      which: 1
+    };
+
+    wordEl.dispatchEvent(new MouseEvent('mousedown', evInit));
+    wordEl.dispatchEvent(new MouseEvent('mouseenter', evInit));
+    wordEl.dispatchEvent(new MouseEvent('mouseover', evInit));
+    wordEl.dispatchEvent(new MouseEvent('mousemove', evInit));
+
+    // 2. Kung hindi nagbago ang state ng salita sa mouseover/mousedown,
+    // ibig sabihin ay sa 'click' o 'mouseup' nakikinig ang highlighter.html mo!
+    const afterMouse = isWordHighlighted(wordEl);
+    if (afterMouse === beforeHL) {
+      wordEl.dispatchEvent(new MouseEvent('mouseup', { ...evInit, buttons: 0 }));
+      wordEl.click();
+    }
+  }
+
+  // Interpolate points kapag mabilis ang swipe ng daliri para walang malaktawang salita
+  function swipeLine(x1, y1, x2, y2) {
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const steps = Math.max(1, Math.ceil(dist / 12));
+    for (let i = 1; i <= steps; i++) {
+      const cx = x1 + ((x2 - x1) * i) / steps;
+      const cy = y1 + ((y2 - y1) * i) / steps;
+      const word = findWordAtPoint(cx, cy);
+      if (word) {
+        triggerWordAction(word, cx, cy, false);
+      }
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    let lastX = 0, lastY = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const t = e.touches[0];
+      if (isUIControl(e.target)) return;
+
+      const word = findWordAtPoint(t.clientX, t.clientY);
+      if (!word) return;
+
+      // Pigilan ang browser native click/scroll para tayo ang may full control
+      if (e.cancelable) e.preventDefault();
+
+      isDragging = true;
+      touchedInCurrentSwipe.clear();
+      startX = lastX = t.clientX;
+      startY = lastY = t.clientY;
+
+      // Alamin kung magpe-paint o magbubura base sa unang salitang tinapik
+      dragMode = isWordHighlighted(word) ? 'erase' : 'paint';
+
+      triggerWordAction(word, t.clientX, t.clientY, true);
+    }, { passive: false, capture: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging || !e.touches || e.touches.length === 0) return;
+      if (e.cancelable) e.preventDefault();
+
+      const t = e.touches[0];
+      // Gumamit ng raycast line interpolation para kahit mabilis ang hagod, kuha lahat ng salita!
+      swipeLine(lastX, lastY, t.clientX, t.clientY);
+      lastX = t.clientX;
+      lastY = t.clientY;
+    }, { passive: false, capture: true });
+
+    const finishDrag = (e) => {
+      if (!isDragging) return;
+      if (e.cancelable) e.preventDefault();
+      isDragging = false;
+      dragMode = null;
+
+      // Mag-dispatch ng final mouseup sa document para magsara ang anumang open drag state
+      document.dispatchEvent(new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: lastX,
+        clientY: lastY,
+        button: 0,
+        buttons: 0
+      }));
+      touchedInCurrentSwipe.clear();
+    };
+
+    document.addEventListener('touchend', finishDrag, { passive: false, capture: true });
+    document.addEventListener('touchcancel', finishDrag, { passive: false, capture: true });
+  });
+})();
+</script>
+<style id="highlighter-autofit-style">
+  /* Siguraduhing walang scrollbar at sakto sa screen ng tablet */
+  html, body {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+  .autofit-verse-box {
+    overflow: hidden !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: center !important;
+    justify-content: center !important;
+  }
+  /* Pigilan din ang flicker sa mismong highlighter screen kapag nag-click o nag-clear */
+  .suppress-hl-flicker, .suppress-hl-flicker * {
+    animation: none !important;
+    transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease !important;
+  }
+</style>
+<script>
+/* HIGHLIGHTER-AUTOFIT-AND-SMOOTH-CLEAR */
+(function() {
+  function findVerseContainer() {
+    // Hanapin ang mismong box kung saan nakalagay ang mga salita ng verse
+    const selectors = [
+      '#verse-box', '#verseBox', '#verse-container', '#verseContainer',
+      '#highlighter-box', '#words-container', '#verse-text', '#verseText',
+      '.verse-box', '.verse-container', '.highlighter-content', '.words-area', '#content'
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && el.innerText && el.innerText.trim().length > 0) return el;
+    }
+    // Fallback: Hanapin ang parent container ng mga clickable word spans
+    const wordSpan = document.querySelector('span[data-index], span.word, .word-item, .hl-word');
+    if (wordSpan && wordSpan.parentElement) return wordSpan.parentElement;
+    return null;
+  }
+
+  function fitTextToBox() {
+    const box = findVerseContainer();
+    if (!box) return;
+
+    box.classList.add('suppress-hl-flicker');
+    box.style.overflowY = 'hidden';
+
+    // Kunin ang available height ng box (o ng natitirang espasyo sa tablet screen)
+    const rect = box.getBoundingClientRect();
+    const maxHeight = box.clientHeight > 60 ? box.clientHeight : (window.innerHeight - rect.top - 24);
+    const maxWidth = box.clientWidth || (window.innerWidth - 32);
+
+    if (maxHeight <= 40 || !box.innerText.trim()) return;
+
+    // Binary search para mahanap ang pinakamalaking font size na kasya nang walang scroll
+    let minSize = 14;
+    let maxSize = 90;
+    let optimalSize = 28;
+
+    while (minSize <= maxSize) {
+      const mid = Math.floor((minSize + maxSize) / 2);
+      box.style.fontSize = mid + 'px';
+      box.style.lineHeight = '1.32';
+
+      // I-check kung sumobra sa taas o lapad ng box
+      if (box.scrollHeight <= maxHeight && box.scrollWidth <= maxWidth + 4) {
+        optimalSize = mid;
+        minSize = mid + 1; // Subukan pang lakihan
+      } else {
+        maxSize = mid - 1; // Paliitin dahil umapaw
+      }
+    }
+
+    box.style.fontSize = optimalSize + 'px';
+  }
+
+  // Patakbuhin ang auto-fit tuwing magbabago ang verse o ikot ng tablet
+  let fitTimeout = null;
+  function scheduleFit() {
+    clearTimeout(fitTimeout);
+    fitTimeout = setTimeout(fitTextToBox, 30);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    scheduleFit();
+    const observer = new MutationObserver((mutations) => {
+      // Mag-recalculate lang kapag nagpalit ng mga salita (childList), hindi kapag nag-toggle lang ng highlight class
+      const hasNewWords = mutations.some(m => m.type === 'childList');
+      if (hasNewWords) scheduleFit();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+  window.addEventListener('resize', scheduleFit);
+  window.addEventListener('orientationchange', scheduleFit);
+  window.addEventListener('storage', scheduleFit);
+})();
+</script>
+
+<script>
+/* LIVE-MEMORY-CLIENT-SYNC */
+(function() {
+  const origSetItem = Storage.prototype.setItem;
+  let pendingBatch = {};
+  let sendTimer = null;
+
+  // 1. HYDRATE ONCE: Pagka-bukas o pag-refresh lang ng page kukunin ang Server Memory!
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/live-session')
+      .then(r => r.json())
+      .then(session => {
+        if (!session || !session.localStorageBackup) return;
+        window.__APPLYING_REMOTE_STORAGE__ = true;
+        let lastKey = null, lastVal = null;
+        for (const [k, v] of Object.entries(session.localStorageBackup)) {
+          if (localStorage.getItem(k) !== v) {
+            try { origSetItem.call(localStorage, k, v); } catch (e) {}
+            lastKey = k;
+            lastVal = v;
+          }
+        }
+        if (lastKey !== null) {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: lastKey,
+            newValue: lastVal,
+            storageArea: window.localStorage
+          }));
+        }
+        window.__APPLYING_REMOTE_STORAGE__ = false;
+      })
+      .catch(() => {});
+  });
+
+  // 2. WRITE-BEHIND: Tahimik na i-save sa Server Memory ang iniwan ng Operator
+  // Walang pabalik na SSE StorageEvent loop para hindi mag-double trigger ang animations!
+  Storage.prototype.setItem = function(key, value) {
+    const strVal = String(value);
+    const prevVal = this.getItem(key);
+    origSetItem.apply(this, arguments);
+
+    if (this === window.localStorage && !window.__APPLYING_REMOTE_STORAGE__) {
+      if (prevVal === strVal) return;
+      pendingBatch[key] = strVal;
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(() => {
+        const batchToSend = pendingBatch;
+        pendingBatch = {};
+        fetch('/api/live-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchToSend })
+        }).catch(() => {});
+      }, 100);
+    }
+  };
+})();
+</script>
+
+<script>
+/* WEB-LINK-INTERCEPTOR */
+(function() {
+  const cleanUrl = (u) => {
+    if (typeof u !== 'string') return u;
+    return u
+      .replace(/^https?:\/\/(localhost|127\.0\.0\.1):3300/i, window.location.origin)
+      .replace(/^https?:\/\/[^/]+:3300/i, window.location.origin);
+  };
+  const origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string') input = cleanUrl(input);
+    return origFetch.call(this, input, init);
+  };
+  const OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    if (typeof url === 'string') {
+      const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      url = url
+        .replace(/^wss?:\/\/(localhost|127\.0\.0\.1):3300/i, wsProto + window.location.host)
+        .replace(/^wss?:\/\/[^/]+:3300/i, wsProto + window.location.host);
+      if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+        url = 'wss://' + url.slice(5);
+      }
+    }
+    return protocols ? new OrigWS(url, protocols) : new OrigWS(url);
+  };
+  window.WebSocket.prototype = OrigWS.prototype;
+  window.WebSocket.OPEN = OrigWS.OPEN;
+  window.WebSocket.CLOSED = OrigWS.CLOSED;
+})();
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>Live Output Mirror — Highlighter</title>
+  <style>
+    :root {
+      --hl-font-color: #ffd700;
+      --hl-box-rgba: rgba(255, 215, 0, 0.85);
+      --hl-corner-radius: 6px;
+      --title-verse-gap: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #0b0f19;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      touch-action: none !important;
+    }
+
+    /* STAGE WRAPPER (MIRRORS OUTPUT.HTML) */
+    #mirrorViewport {
+      flex: 1;
+      width: 100%;
+      height: calc(100vh - 54px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+      padding: 16px;
+    }
+
+    #multiSlotStage {
+      display: grid;
+      gap: 18px;
+      width: 100%;
+      height: 100%;
+      transition: all 0.25s ease;
+    }
+    #multiSlotStage.mode-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+    #multiSlotStage.mode-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+    /* 3-Split Pyramid Layout: 2 on top, 1 centered at the bottom */
+    #multiSlotStage.mode-3 {
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-rows: 1fr 1fr !important;
+    }
+    #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+      grid-column: 1 / -1 !important;
+      width: calc(50% - 9px) !important;
+      justify-self: center !important;
+    }
+    #multiSlotStage.mode-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+    .render-box {
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 25, 60, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
+      padding: 32px 40px;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .render-box.transparent-verse-box {
+      background: rgba(15, 23, 42, 0.45) !important;
+      border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+    }
+
+    body.hide-verse-box-active #multiSlotStage {
+      opacity: 0.25;
+    }
+
+    .reference-container {
+      text-align: left;
+      margin-bottom: var(--title-verse-gap, 18px);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .reference-title {
+      font-size: 34px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+
+    .version-subtitle {
+      font-size: 18px;
+      font-weight: 700;
+      font-style: italic;
+      color: #facc15;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
+    }
+
+    .verse-container {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: center;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .verse-text {
+      line-height: 1.55;
+      color: #ffffff;
+      word-break: break-word;
+      font-size: 42px;
+    }
+
+    /* INTERACTIVE WORDS FOR EMPHASIS */
+    .ndi-word, .ndi-space {
+      display: inline !important;
+      padding: 2px 0px !important;
+      color: #ffffff;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
+      transition: all 0.15s ease;
+    }
+
+    .ndi-word {
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .ndi-word:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* KARAOKE & BOX EMPHASIS STYLES (MIRRORS OUTPUT.HTML) */
+    [data-hl-mode="karaoke"] .ndi-word.active-highlight {
+      background: rgba(255, 215, 0, 0.15) !important;
+      color: var(--hl-font-color) !important;
+      text-shadow: 0 0 8px var(--hl-font-color), 0 0 16px var(--hl-font-color), 2px 2px 4px rgba(0,0,0,0.95) !important;
+      border-bottom: 3px solid var(--hl-font-color) !important;
+    }
+
+    [data-hl-mode="box"] .ndi-word.active-highlight,
+    [data-hl-mode="box"] .ndi-space.active-highlight {
+      background-color: var(--hl-box-rgba) !important;
+      color: #ffffff !important;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.9) !important;
+      border-radius: 4px !important;
+    }
+
+    /* BOTTOM HIGHLIGHTER CONTROL BAR */
+    footer {
+      height: 54px;
+      background: rgba(15, 23, 42, 0.96);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pulse-dot {
+      width: 11px;
+      height: 11px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #22c55e;
+    }
+
+    .brand-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #ffd700;
+      letter-spacing: 0.5px;
+    }
+
+    .mode-badge {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-kuya {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-kuya:active { transform: scale(0.95); }
+
+    .btn-clear {
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #fca5a5 !important;
+      border-color: rgba(239, 68, 68, 0.45) !important;
+    }
+  </style>
+</head>
+<body data-hl-mode="karaoke">
+
+  <div id="mirrorViewport">
+    <div id="multiSlotStage" class="mode-1"></div>
+  </div>
+
+  <footer>
+    <div class="status-group">
+      <div class="pulse-dot" id="dotStatus"></div>
+      <span class="brand-title">OUTPUT MIRROR HIGHLIGHTER</span>
+      <span class="mode-badge" id="modeBadge">1 FULL</span>
+      <span id="hiddenWarning" style="display:none; color:#f87171; font-size:0.8rem; font-weight:700;">⚠️ OUTPUT HIDDEN</span>
+    </div>
+
+    <div class="controls-right">
+      <span style="font-size: 0.8rem; color: #94a3b8; margin-right: 6px;">👉 Mode-Switch Immune Highlights</span>
+      <button class="btn-kuya btn-clear" id="btnClearHighlights">
+        <span>🧹</span> Clear Highlights
+      </button>
+      <button class="btn-kuya" id="btnFullscreen">
+        <span>⛶</span> Fullscreen
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      const stage = document.getElementById('multiSlotStage');
+      const dotStatus = document.getElementById('dotStatus');
+      const modeBadge = document.getElementById('modeBadge');
+      const hiddenWarning = document.getElementById('hiddenWarning');
+
+      let lastOutputData = null;
+      let lastDisplayMode = 1;
+
+      // Persistent memory para sa 4 na slots (hindi mabubura kahit mag-switch ng mode)
+      const persistentHighlights = { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set() };
+      const slotVerseSignatures = ['', '', '', ''];
+      const lastOperatorHighSig = ['', '', '', ''];
+
+      let isPointerDown = false;
+      let activeDragSlot = null;
+      let dragTargetHighlightState = true;
+
+      document.addEventListener('pointerup', () => {
+        isPointerDown = false;
+        activeDragSlot = null;
+      });
+
+      let bcLive = null;
+      try {
+        bcLive = new BroadcastChannel('bible_live_stream');
+      } catch (e) {}
+
+      function sendHighlightAction(slotIdx, wordIdx, isHighlighted) {
+        const payload = {
+          type: 'SET_SLOT_HIGHLIGHT',
+          slotIndex: slotIdx,
+          wordIndex: wordIdx,
+          isHighlighted: isHighlighted,
+          __msgId: Date.now() + '_' + Math.random().toString(36).substr(2, 7)
+        };
+
+        fetch('/api/output-broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        fetch('/api/pastor-tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        // I-sync pabalik sa localStorage payload para hindi ma-overwrite ng Operator
+        syncHighlightsToStorage();
+      }
+
+      function syncHighlightsToStorage() {
+        try {
+          const raw = localStorage.getItem('bible_live_payload');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.slots)) {
+              for (let i = 0; i < 4; i++) {
+                if (parsed.slots[i]) {
+                  parsed.slots[i].highlighted = Array.from(persistentHighlights[i]);
+                }
+              }
+              if (parsed.slots[0]) parsed.highlighted = parsed.slots[0].highlighted;
+              localStorage.setItem('bible_live_payload', JSON.stringify(parsed));
+              localStorage.setItem('bible_live_timestamp', String(Date.now()));
+              if (bcLive) bcLive.postMessage(parsed);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Re-broadcast ang lahat ng active highlights sa Output kapag nagpalit ng Display Mode
+      function rebroadcastActiveHighlights(visibleCount) {
+        for (let sIdx = 0; sIdx < visibleCount; sIdx++) {
+          persistentHighlights[sIdx].forEach(wIdx => {
+            const payload = {
+              type: 'SET_SLOT_HIGHLIGHT',
+              slotIndex: sIdx,
+              wordIndex: wIdx,
+              isHighlighted: true,
+              __msgId: Date.now() + '_reb_' + sIdx + '_' + wIdx + '_' + Math.random().toString(36).substr(2, 4)
+            };
+            fetch('/api/output-broadcast', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }).catch(() => {});
+          });
+        }
+        syncHighlightsToStorage();
+      }
+
+      function updateWordVisuals(boxEl, sIdx) {
+        if (!boxEl) return;
+        const words = boxEl.querySelectorAll('.ndi-word');
+        const spaces = boxEl.querySelectorAll('.ndi-space');
+        const highSet = persistentHighlights[sIdx];
+
+        words.forEach((w, idx) => {
+          w.classList.toggle('active-highlight', highSet.has(idx));
+        });
+        spaces.forEach((sp) => {
+          const idx = parseInt(sp.dataset.spaceAfter, 10);
+          sp.classList.toggle('active-highlight', highSet.has(idx) && highSet.has(idx + 1));
+        });
+      }
+
+      function adjustMirrorFontSize(boxEl, baseMaxSize, displayMode) {
+        const container = boxEl.querySelector('.verse-container');
+        const text = boxEl.querySelector('.verse-text');
+        const refTitle = boxEl.querySelector('.reference-title');
+        const verSub = boxEl.querySelector('.version-subtitle');
+        if (!container || !text) return;
+
+        let scaleFactor = 1;
+        if (displayMode === 2) scaleFactor = 0.82;
+        if (displayMode === 3) scaleFactor = 0.70;
+        if (displayMode === 4) scaleFactor = 0.72;
+
+        if (refTitle) refTitle.style.fontSize = Math.round(34 * scaleFactor) + 'px';
+        if (verSub) verSub.style.fontSize = Math.round(18 * scaleFactor) + 'px';
+
+        let fontSize = Math.round(baseMaxSize * scaleFactor);
+        text.style.fontSize = fontSize + 'px';
+        while ((text.scrollHeight > container.clientHeight || text.scrollWidth > container.clientWidth) && fontSize > 14) {
+          fontSize -= 2;
+          text.style.fontSize = fontSize + 'px';
+        }
+      }
+
+      function applyTypography(boxEl, fonts) {
+        const outRefEl = boxEl.querySelector('.reference-title');
+        const outVerEl = boxEl.querySelector('.version-subtitle');
+        const outContentEl = boxEl.querySelector('.verse-text');
+        const defaultFont = 'Arial, Helvetica, sans-serif';
+        const f = fonts || {};
+
+        if (outRefEl) {
+          outRefEl.style.fontFamily = f.ref || defaultFont;
+          outRefEl.style.fontWeight = f.refBold !== false ? '700' : '400';
+          outRefEl.style.fontStyle = f.refItalic ? 'italic' : 'normal';
+        }
+        if (outVerEl) {
+          outVerEl.style.fontFamily = f.version || defaultFont;
+          outVerEl.style.fontWeight = f.verBold !== false ? '700' : '400';
+          outVerEl.style.fontStyle = f.verItalic !== false ? 'italic' : 'normal';
+        }
+        if (outContentEl) {
+          outContentEl.style.fontFamily = f.content || defaultFont;
+          outContentEl.style.fontWeight = f.contentBold !== false ? '700' : '400';
+          outContentEl.style.fontStyle = f.contentItalic ? 'italic' : 'normal';
+        }
+      }
+
+      // MAIN RENDER FUNCTION (MODE-SWITCH IMMUNE)
+      function renderMirrorState(data) {
+        if (!data || !Array.isArray(data.slots)) return;
+        lastOutputData = data;
+
+        const viewport = document.getElementById('mirrorViewport');
+        if (data.bg === 'transparent') {
+          viewport.style.backgroundColor = '#0b0f19';
+          viewport.style.backgroundImage = 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 0)';
+          viewport.style.backgroundSize = '24px 24px';
+        } else if (data.bg && data.bg.startsWith('url')) {
+          viewport.style.backgroundImage = data.bg;
+          viewport.style.backgroundSize = 'cover';
+          viewport.style.backgroundPosition = 'center';
+        } else if (data.bg) {
+          viewport.style.backgroundColor = data.bg;
+          viewport.style.backgroundImage = 'none';
+        }
+
+        if (typeof data.hideVerseBox !== 'undefined') {
+          document.body.classList.toggle('hide-verse-box-active', !!data.hideVerseBox);
+          hiddenWarning.style.display = data.hideVerseBox ? 'inline' : 'none';
+        }
+
+        const s = data.settings || {};
+        const hideBoxBg = Boolean(s.hideBoxBg);
+        const baseMaxFont = parseInt(s.maxFontSize, 10) || 46;
+        const topGapPx = (s.topGap !== undefined) ? parseInt(s.topGap, 10) : 18;
+        const displayMode = parseInt(data.displayMode, 10) || 1;
+        const modeChanged = (displayMode !== lastDisplayMode);
+        lastDisplayMode = displayMode;
+
+        document.documentElement.style.setProperty('--title-verse-gap', topGapPx + 'px');
+
+        const modeLabels = { 1: '1 FULL (LIVE)', 2: '2 SPLIT (LIVE)', 3: '3 SPLIT (LIVE)', 4: '4 GRID (LIVE)' };
+        modeBadge.textContent = modeLabels[displayMode] || (displayMode + ' MODE');
+
+        stage.className = 'mode-' + displayMode;
+
+        // I-check muna ang LAHAT ng 4 slots para sa pagbabago ng salita kahit nakatago pa ang iba
+        data.slots.slice(0, 4).forEach((slotData, idx) => {
+          const wordsArr = slotData.words || [];
+          const wordsSig = wordsArr.join(' ').trim().toLowerCase();
+          const opHighArr = Array.isArray(slotData.highlighted) ? slotData.highlighted : [];
+          const opHighSig = opHighArr.slice().sort((a,b) => a - b).join(',');
+
+          if (wordsSig && slotVerseSignatures[idx] !== wordsSig) {
+            // Tunay na nagpalit ng verse sa slot na ito -> i-reset at gamitin ang highlights ng bagong verse
+            slotVerseSignatures[idx] = wordsSig;
+            persistentHighlights[idx] = new Set(opHighArr);
+            lastOperatorHighSig[idx] = opHighSig;
+          } else {
+            // HINDI nagbago ang verse! Huwag burahin ang highlights kapag nag-switch lang ng mode.
+            // Kung nagdagdag ng highlight ang Operator mismo sa PC niya, isama natin:
+            if (opHighSig !== lastOperatorHighSig[idx]) {
+              lastOperatorHighSig[idx] = opHighSig;
+              if (opHighArr.length > 0) {
+                opHighArr.forEach(wIdx => persistentHighlights[idx].add(wIdx));
+              }
+            }
+          }
+        });
+
+        const visibleSlots = data.slots.slice(0, displayMode);
+
+        while (stage.children.length > visibleSlots.length) stage.removeChild(stage.lastChild);
+        while (stage.children.length < visibleSlots.length) {
+          const box = document.createElement('div');
+          box.className = 'render-box';
+          box.innerHTML = `
+            <div class="reference-container">
+              <div>
+                <div class="reference-title"></div>
+                <div class="version-subtitle"></div>
+              </div>
+              <span class="slot-indicator" style="font-size:12px; color:#94a3b8; font-weight:700;"></span>
+            </div>
+            <div class="verse-container">
+              <div class="verse-text"></div>
+            </div>
+          `;
+          stage.appendChild(box);
+        }
+
+        visibleSlots.forEach((slotData, sIdx) => {
+          const boxEl = stage.children[sIdx];
+          boxEl.classList.toggle('transparent-verse-box', hideBoxBg);
+
+          const refEl = boxEl.querySelector('.reference-title');
+          const verEl = boxEl.querySelector('.version-subtitle');
+          const indEl = boxEl.querySelector('.slot-indicator');
+          const contentEl = boxEl.querySelector('.verse-text');
+
+          refEl.textContent = slotData.reference || '';
+          verEl.textContent = slotData.version || '';
+          if (indEl) indEl.textContent = 'SLOT ' + (sIdx + 1);
+
+          const wordsArr = slotData.words || [];
+          const hasSpaces = slotData.hasSpaces !== false;
+
+          const newVerseKey = (slotData.reference || '') + '|' + (slotData.version || '') + '|' + wordsArr.join(' ');
+          if (contentEl.dataset.verseKey !== newVerseKey) {
+            contentEl.dataset.verseKey = newVerseKey;
+            contentEl.innerHTML = '';
+
+            wordsArr.forEach((word, wIdx) => {
+              const span = document.createElement('span');
+              span.textContent = word;
+              span.classList.add('ndi-word');
+              span.dataset.idx = wIdx;
+
+              span.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                isPointerDown = true;
+                activeDragSlot = sIdx;
+                const willHighlight = !persistentHighlights[sIdx].has(wIdx);
+                dragTargetHighlightState = willHighlight;
+
+                if (willHighlight) persistentHighlights[sIdx].add(wIdx);
+                else persistentHighlights[sIdx].delete(wIdx);
+
+                updateWordVisuals(boxEl, sIdx);
+                sendHighlightAction(sIdx, wIdx, willHighlight);
+              });
+
+              span.addEventListener('pointerenter', () => {
+                if (isPointerDown && activeDragSlot === sIdx) {
+                  const currentlyHas = persistentHighlights[sIdx].has(wIdx);
+                  if (currentlyHas !== dragTargetHighlightState) {
+                    if (dragTargetHighlightState) persistentHighlights[sIdx].add(wIdx);
+                    else persistentHighlights[sIdx].delete(wIdx);
+
+                    updateWordVisuals(boxEl, sIdx);
+                    sendHighlightAction(sIdx, wIdx, dragTargetHighlightState);
+                  }
+                }
+              });
+
+              contentEl.appendChild(span);
+
+              if (wIdx < wordsArr.length - 1 && hasSpaces) {
+                const space = document.createElement('span');
+                space.textContent = ' ';
+                space.classList.add('ndi-space');
+                space.dataset.spaceAfter = wIdx;
+                contentEl.appendChild(space);
+              }
+            });
+          }
+
+          // Laging i-apply ang persistentHighlights para hindi mawala sa mode switch!
+          updateWordVisuals(boxEl, sIdx);
+          applyTypography(boxEl, data.fonts);
+          adjustMirrorFontSize(boxEl, baseMaxFont, displayMode);
+        });
+
+        // Kung nagpalit ng mode ang Operator, ibalik agad sa Output screen ang mga highlights
+        if (modeChanged) {
+          setTimeout(() => rebroadcastActiveHighlights(displayMode), 60);
+        }
+      }
+
+      // CLEAR ALL HIGHLIGHTS
+      document.getElementById('btnClearHighlights').addEventListener('click', () => {
+        for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+        stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+
+        const payload = {
+          type: 'CLEAR_ALL_HIGHLIGHTS',
+          __msgId: Date.now() + '_clear'
+        };
+
+        fetch('/api/output-broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        fetch('/api/pastor-tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+
+        syncHighlightsToStorage();
+      });
+
+      // FULLSCREEN BUTTON
+      document.getElementById('btnFullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      // 1. SSE Output Stream Listener (LAN / Tablet)
+      function connectOutputStream() {
+        const es = new EventSource('/api/output-stream');
+        es.onopen = () => {
+          dotStatus.style.background = '#22c55e';
+          dotStatus.style.boxShadow = '0 0 10px #22c55e';
+        };
+        es.onmessage = (e) => {
+          if (!e.data) return;
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'SET_SLOT_HIGHLIGHT') {
+              const sIdx = msg.slotIndex;
+              if (msg.isHighlighted) persistentHighlights[sIdx].add(msg.wordIndex);
+              else persistentHighlights[sIdx].delete(msg.wordIndex);
+              if (stage.children[sIdx]) updateWordVisuals(stage.children[sIdx], sIdx);
+              return;
+            }
+            if (msg.type === 'CLEAR_ALL_HIGHLIGHTS' || msg.type === 'CLEAR_HIGHLIGHTS') {
+              for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+              stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+              return;
+            }
+            if (typeof msg.hideVerseBox !== 'undefined' && !msg.slots) {
+              document.body.classList.toggle('hide-verse-box-active', !!msg.hideVerseBox);
+              hiddenWarning.style.display = msg.hideVerseBox ? 'inline' : 'none';
+              return;
+            }
+            if (Array.isArray(msg.slots)) {
+              renderMirrorState(msg);
+            }
+          } catch (err) {}
+        };
+        es.onerror = () => {
+          dotStatus.style.background = '#ef4444';
+          dotStatus.style.boxShadow = '0 0 10px #ef4444';
+          es.close();
+          setTimeout(connectOutputStream, 2000);
+        };
+      }
+      connectOutputStream();
+
+      // 2. WebSocket Listener
+      function connectLiveSocket() {
+        const wsHost = window.location.host || 'localhost:5000';
+        const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + wsHost);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data.slots)) renderMirrorState(data);
+          } catch (e) {}
+        };
+        ws.onclose = () => setTimeout(connectLiveSocket, 2000);
+        ws.onerror = () => ws.close();
+      }
+      connectLiveSocket();
+
+      // 3. LocalStorage & BroadcastChannel Fallbacks
+      if (bcLive) {
+        bcLive.onmessage = (e) => {
+          if (e.data && Array.isArray(e.data.slots)) renderMirrorState(e.data);
+        };
+      }
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'bible_live_payload' && e.newValue) {
+          try { renderMirrorState(JSON.parse(e.newValue)); } catch (err) {}
+        }
+      });
+
+      const savedInit = localStorage.getItem('bible_live_payload');
+      if (savedInit) {
+        try { renderMirrorState(JSON.parse(savedInit)); } catch (err) {}
+      }
+
+      window.addEventListener('resize', () => {
+        if (lastOutputData) renderMirrorState(lastOutputData);
+      });
+    })();
+  </script>
+</body>
+</html>
