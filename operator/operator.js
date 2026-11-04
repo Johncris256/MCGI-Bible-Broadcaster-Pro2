@@ -274,6 +274,9 @@ function syncState(forcePreviewAnim) {
 
   const serializedSlots = slots.map(s => ({
     transId: s.transId || '001',
+    bookIndex: Number.isInteger(s.bookIndex) ? s.bookIndex : 0,
+    chapter: String(s.chapter || '1'),
+    verse: String(s.verse || '1'),
     reference: s.reference || 'GENESIS 1:1',
     version: s.versionName || 'ANG DATING BIBLIA',
     words: s.words || [],
