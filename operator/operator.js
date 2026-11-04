@@ -84,15 +84,16 @@ window.customLayoutSettings = {
   hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true'
 };
 
-// Per-layout defaults. Verse font size follows the content-length table;
-// no per-layout Max Font override is stored in mode settings.
+// Per-layout defaults. New X framing and Title Size controls preserve the
+// existing Y framing, spacing, and verse-length font behavior.
+const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customOutputFonts.refSize) || 60));
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomY: 100, panY: 0, topGap: 11, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  2: Object.freeze({ zoomY: 100, panY: -82, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  3: Object.freeze({ zoomY: 82, panY: 0, topGap: 70, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20 }),
-  4: Object.freeze({ zoomY: 82, panY: 0, topGap: 65, boxPadding: 70, letterSpacing: -1.1, lineSpacing: 1.20 })
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 11, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  3: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20 }),
+  4: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20 })
 });
-const MODE_DEFAULTS_VERSION = '2026-11-01-layout-defaults-v3';
+const MODE_DEFAULTS_VERSION = '2026-11-04-layout-xy-title-v2';
 function getDefaultModeAdjustment(mode) {
   return { ...(DEFAULT_MODE_ADJUSTMENTS[mode] || DEFAULT_MODE_ADJUSTMENTS[1]) };
 }
@@ -108,8 +109,11 @@ function normalizeModeAdjustment(value, mode = 1) {
     return Number.isFinite(n) ? Number(Math.min(max, Math.max(min, n)).toFixed(decimals)) : fallback;
   };
   return {
+    zoomX: boundedInt(item.zoomX, defaults.zoomX, 50, 150),
+    panX: boundedInt(item.panX, defaults.panX, -400, 400),
     zoomY: boundedInt(item.zoomY, defaults.zoomY, 50, 150),
     panY: boundedInt(item.panY, defaults.panY, -400, 400),
+    titleSize: boundedInt(item.titleSize, defaults.titleSize, 20, 120),
     topGap: boundedInt(item.topGap, defaults.topGap, 0, 120),
     boxPadding: boundedInt(item.boxPadding, defaults.boxPadding, 10, 90),
     letterSpacing: boundedNumber(item.letterSpacing, defaults.letterSpacing, -2, 10, 1),
@@ -119,13 +123,30 @@ function normalizeModeAdjustment(value, mode = 1) {
 function migrateLegacyModeDefaults(value, mode) {
   const item = value && typeof value === 'object' ? { ...value } : {};
   const defaults = DEFAULT_MODE_ADJUSTMENTS[mode] || DEFAULT_MODE_ADJUSTMENTS[1];
-  // Upgrade only the previous untouched generic defaults. Keep deliberate values.
+  // Add newly introduced controls without changing existing custom values.
+  if (item.zoomX === undefined || item.zoomX === null) item.zoomX = defaults.zoomX;
+  if (item.panX === undefined || item.panX === null) item.panX = defaults.panX;
+  if (item.titleSize === undefined || item.titleSize === null) item.titleSize = defaults.titleSize;
+  // Upgrade only the previous untouched generic Y defaults. Keep deliberate values.
   if (item.zoomY === undefined || item.zoomY === null || (Number(item.zoomY) === 100 && defaults.zoomY !== 100)) item.zoomY = defaults.zoomY;
   if (item.panY === undefined || item.panY === null || (Number(item.panY) === 0 && defaults.panY !== 0)) item.panY = defaults.panY;
   if (item.topGap === undefined || item.topGap === null || Number(item.topGap) === 1) item.topGap = defaults.topGap;
   if (item.boxPadding === undefined || item.boxPadding === null || Number(item.boxPadding) === 70) item.boxPadding = defaults.boxPadding;
   if (item.letterSpacing === undefined || item.letterSpacing === null || Number(item.letterSpacing) === 0) item.letterSpacing = defaults.letterSpacing;
   if (item.lineSpacing === undefined || item.lineSpacing === null || Number(item.lineSpacing) === 1.55) item.lineSpacing = defaults.lineSpacing;
+  // Move untouched values from XY/Title v1 to the new 3 Split / 4 Grid defaults.
+  // Values different from the previous defaults are treated as operator customizations.
+  const previousXYTitleDefaults = {
+    3: { zoomX: 100, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 70, boxPadding: 65, letterSpacing: -1.0 },
+    4: { zoomX: 100, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 65, boxPadding: 70, letterSpacing: -1.1 }
+  }[mode];
+  if (previousXYTitleDefaults) {
+    Object.keys(previousXYTitleDefaults).forEach(field => {
+      if (item[field] !== undefined && item[field] !== null && Number(item[field]) === Number(previousXYTitleDefaults[field])) {
+        item[field] = defaults[field];
+      }
+    });
+  }
   delete item.maxFontSize;
   return item;
 }
@@ -529,10 +550,16 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   const menu = document.getElementById('modeAdjustMenu');
   if (!menu) return;
   const title = document.getElementById('modeAdjustTitle');
-  const zoomRange = document.getElementById('modeAdjustZoomY');
-  const panRange = document.getElementById('modeAdjustPanY');
-  const zoomValue = document.getElementById('modeAdjustZoomYValue');
-  const panValue = document.getElementById('modeAdjustPanYValue');
+  const zoomXRange = document.getElementById('modeAdjustZoomX');
+  const panXRange = document.getElementById('modeAdjustPanX');
+  const zoomYRange = document.getElementById('modeAdjustZoomY');
+  const panYRange = document.getElementById('modeAdjustPanY');
+  const titleSizeRange = document.getElementById('modeAdjustTitleSize');
+  const zoomXValue = document.getElementById('modeAdjustZoomXValue');
+  const panXValue = document.getElementById('modeAdjustPanXValue');
+  const zoomYValue = document.getElementById('modeAdjustZoomYValue');
+  const panYValue = document.getElementById('modeAdjustPanYValue');
+  const titleSizeValue = document.getElementById('modeAdjustTitleSizeValue');
   const gapRange = document.getElementById('modeAdjustTopGap');
   const paddingRange = document.getElementById('modeAdjustBoxPadding');
   const gapValue = document.getElementById('modeAdjustTopGapValue');
@@ -557,10 +584,16 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   function formatPan(value) { return (value > 0 ? '+' : '') + value + 'px'; }
   function refreshControls() {
     const value = getEffectiveAdjustment(editingMode);
-    zoomRange.value = String(value.zoomY);
-    panRange.value = String(value.panY);
-    zoomValue.textContent = value.zoomY + '%';
-    panValue.textContent = formatPan(value.panY);
+    zoomXRange.value = String(value.zoomX);
+    panXRange.value = String(value.panX);
+    zoomYRange.value = String(value.zoomY);
+    panYRange.value = String(value.panY);
+    titleSizeRange.value = String(value.titleSize);
+    zoomXValue.textContent = value.zoomX + '%';
+    panXValue.textContent = formatPan(value.panX);
+    zoomYValue.textContent = value.zoomY + '%';
+    panYValue.textContent = formatPan(value.panY);
+    titleSizeValue.textContent = value.titleSize + 'px';
     gapRange.value = String(value.topGap);
     paddingRange.value = String(value.boxPadding);
     gapValue.textContent = value.topGap + 'px';
@@ -573,8 +606,11 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   function saveAndBroadcast(changedField) {
     const current = getAdjustment(editingMode);
     const next = { ...current };
-    if (changedField === 'zoomY') next.zoomY = zoomRange.value;
-    else if (changedField === 'panY') next.panY = panRange.value;
+    if (changedField === 'zoomX') next.zoomX = zoomXRange.value;
+    else if (changedField === 'panX') next.panX = panXRange.value;
+    else if (changedField === 'zoomY') next.zoomY = zoomYRange.value;
+    else if (changedField === 'panY') next.panY = panYRange.value;
+    else if (changedField === 'titleSize') next.titleSize = titleSizeRange.value;
     else if (changedField === 'topGap') next.topGap = gapRange.value;
     else if (changedField === 'boxPadding') next.boxPadding = paddingRange.value;
     else if (changedField === 'letterSpacing') next.letterSpacing = letterSpacingRange.value;
@@ -613,8 +649,11 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
     });
   });
 
-  zoomRange.addEventListener('input', () => saveAndBroadcast('zoomY'));
-  panRange.addEventListener('input', () => saveAndBroadcast('panY'));
+  zoomXRange.addEventListener('input', () => saveAndBroadcast('zoomX'));
+  panXRange.addEventListener('input', () => saveAndBroadcast('panX'));
+  zoomYRange.addEventListener('input', () => saveAndBroadcast('zoomY'));
+  panYRange.addEventListener('input', () => saveAndBroadcast('panY'));
+  titleSizeRange.addEventListener('input', () => saveAndBroadcast('titleSize'));
   gapRange.addEventListener('input', () => saveAndBroadcast('topGap'));
   paddingRange.addEventListener('input', () => saveAndBroadcast('boxPadding'));
   letterSpacingRange.addEventListener('input', () => saveAndBroadcast('letterSpacing'));
