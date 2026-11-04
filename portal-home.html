@@ -96,164 +96,372 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MCGI Bible Broadcast System — Main Home Page</title>
   <style>
+    :root {
+      color-scheme: light;
+      --navy: #173b5c;
+      --navy-deep: #0b2948;
+      --gold: #e7b92f;
+      --ink: #17212d;
+      --muted: #4b5563;
+    }
+
     * { box-sizing: border-box; }
+
+    html { min-height: 100%; }
+
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(circle at top, #1e293b 0%, #0b111e 70%);
-      color: #f8fafc;
+      min-height: 100svh;
+      padding: clamp(28px, 5vh, 54px) 28px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background-color: #0b2948;
+      background-image:
+        linear-gradient(105deg, rgba(5, 31, 57, .78), rgba(8, 43, 76, .72)),
+        url('/images/Bible%20BG.jpg');
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-attachment: fixed;
+    }
+
+    .portal-container {
+      width: min(100%, 1280px);
+      margin: auto;
+    }
+
+    .portal-header {
+      text-align: center;
+      margin: 0 auto 30px;
+    }
+
+    .portal-title {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(30px, 3.1vw, 54px);
+      line-height: 1.12;
+      font-weight: 900;
+      letter-spacing: .045em;
+      text-shadow: 0 3px 12px rgba(0, 0, 0, .3);
+    }
+
+    .title-dot { color: var(--gold); padding: 0 .08em; }
+
+    .portal-verse {
+      width: min(100%, 850px);
+      margin: 24px auto 0;
+      padding: 2px 0 2px 20px;
+      border-left: 5px solid var(--gold);
+      text-align: left;
+    }
+
+    .portal-verse p {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(15px, 1.15vw, 20px);
+      font-weight: 750;
+      font-style: italic;
+      line-height: 1.65;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, .3);
+    }
+
+    .portal-verse strong {
+      display: block;
+      margin-top: 8px;
+      color: var(--gold);
+      font-size: 15px;
+      font-style: normal;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .choose-title {
+      margin: 34px 0 28px;
+      color: #fff;
+      text-align: center;
+      font-size: clamp(23px, 2vw, 32px);
+      line-height: 1.2;
+      font-weight: 850;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 20px;
+    }
+
+    .role-card {
+      min-width: 0;
+      min-height: 356px;
+      padding: 30px 24px 25px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 24px;
+      justify-content: space-between;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 14px;
+      background: #fff;
+      color: var(--ink);
+      text-align: center;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, .22);
+      transition: transform .18s ease, box-shadow .18s ease;
     }
-    .portal-container { max-width: 980px; width: 100%; }
-    .portal-header { text-align: center; margin-bottom: 28px; }
-    .portal-badge {
-      display: inline-block;
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      font-size: 11px;
-      font-weight: 800;
-      padding: 4px 12px;
-      border-radius: 999px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
+
+    .role-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 38px rgba(0, 0, 0, .3);
     }
-    .portal-title { font-size: 30px; font-weight: 800; margin: 0 0 6px 0; color: #ffffff; }
-    .portal-sub { font-size: 14px; color: #94a3b8; margin: 0; }
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
+
+    .role-card:focus-within {
+      outline: 3px solid rgba(255, 255, 255, .9);
+      outline-offset: 4px;
     }
-    .role-card {
-      background: rgba(15, 23, 42, 0.88);
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 20px;
+
+    .role-card-top {
+      width: 100%;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      align-items: center;
     }
-    .role-card:hover {
-      transform: translateY(-3px);
-      border-color: #38bdf8;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+
+    .role-icon-wrap {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 14px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: #eef0f4;
+      color: var(--navy);
     }
-    .role-card.admin-card {
-      border-color: #eab308;
-      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+
+    .role-icon {
+      width: 48px;
+      height: 48px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
-    .role-icon { font-size: 28px; margin-bottom: 10px; }
-    .role-name { font-size: 18px; font-weight: 800; margin: 0 0 6px 0; color: #f8fafc; }
-    .role-desc { font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 0 0 18px 0; }
+
+    .role-name {
+      margin: 0 0 12px;
+      color: #111827;
+      font-size: clamp(19px, 1.35vw, 24px);
+      line-height: 1.2;
+      font-weight: 850;
+    }
+
+    .role-desc {
+      max-width: 245px;
+      margin: 0 auto 20px;
+      color: #454b55;
+      font-size: 15.5px;
+      line-height: 1.55;
+    }
+
     .role-btn {
+      width: 100%;
+      min-height: 50px;
+      padding: 12px 14px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      width: 100%;
-      padding: 10px 16px;
+      border: 1px solid transparent;
       border-radius: 8px;
-      font-size: 13.5px;
-      font-weight: 700;
+      background: var(--navy);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1.25;
+      font-weight: 800;
       text-decoration: none;
       cursor: pointer;
-      border: 1px solid transparent;
-      transition: background 0.15s;
+      transition: background .15s ease, transform .15s ease;
     }
-    .btn-admin { background: #facc15; color: #0f172a; }
-    .btn-admin:hover { background: #fde047; }
-    .btn-emerald { background: #059669; color: #ffffff; }
-    .btn-emerald:hover { background: #047857; }
-    .btn-purple { background: #7c3aed; color: #ffffff; }
-    .btn-purple:hover { background: #6d28d9; }
-    .slot-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .role-btn:hover { background: #0e2d4b; transform: translateY(-1px); }
+    .role-btn:focus-visible, .slot-quick-btn:focus-visible {
+      outline: 3px solid #eab308;
+      outline-offset: 3px;
+    }
+
+    .slot-quick-grid {
+      width: 100%;
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
     .slot-quick-btn {
-      padding: 8px 10px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #38bdf8;
+      min-height: 42px;
+      padding: 9px 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d7e0e8;
+      border-radius: 7px;
+      background: #edf3f8;
+      color: var(--navy);
       font-size: 12.5px;
-      font-weight: 700;
+      line-height: 1.2;
+      font-weight: 800;
       text-decoration: none;
-      text-align: center;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background .15s ease, border-color .15s ease;
     }
-    .slot-quick-btn:hover { background: #334155; border-color: #38bdf8; color: #ffffff; }
-    .portal-footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 12px; }
+
+    .slot-quick-btn:hover {
+      background: #dce9f3;
+      border-color: #9db7cc;
+    }
+
+    .portal-footer {
+      margin-top: 22px;
+      color: rgba(255, 255, 255, .72);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.5;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+    }
+
+    @media (max-width: 1080px) {
+      .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .role-card { min-height: 330px; }
+      .role-desc { max-width: 290px; }
+    }
+
+    @media (max-width: 620px) {
+      body {
+        min-height: 100vh;
+        padding: 34px 17px 22px;
+        background-attachment: scroll;
+      }
+      .portal-header { margin-bottom: 24px; }
+      .portal-title { font-size: clamp(26px, 7vw, 36px); letter-spacing: .025em; }
+      .portal-verse { margin-top: 20px; padding-left: 15px; }
+      .portal-verse p { font-size: 15px; }
+      .choose-title { margin: 28px 0 21px; font-size: 24px; }
+      .cards-grid { grid-template-columns: 1fr; gap: 16px; }
+      .role-card { min-height: 310px; padding: 25px 22px 22px; }
+      .role-name { font-size: 22px; }
+      .role-desc { font-size: 15px; }
+      .portal-footer { margin-top: 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="portal-container">
-    <div class="portal-header">
-      <div class="portal-badge">Online Multi-Operator Broadcast Hub</div>
-      <h1 class="portal-title">MCGI Bible Operator Broadcast System</h1>
-      <p class="portal-sub">Piliin ang iyong role o station para mag-connect sa live session</p>
-    </div>
+  <main class="portal-container">
+    <header class="portal-header">
+      <h1 class="portal-title">DIGITAL BIBLE V3 <span class="title-dot">·</span> BETA VERSION</h1>
 
-    <div class="cards-grid">
-      <div class="role-card admin-card">
-        <div>
-          <div class="role-icon">🎛️</div>
-          <h2 class="role-name" style="color:#facc15;">Main Operator (Admin)</h2>
+      <div class="portal-verse">
+        <p>
+          At ipangangaral ang evangeliong ito ng kaharian sa buong sanlibutan sa pagpapatotoo sa lahat ng mga bansa; at kung magkagayo'y darating ang wakas.
+          <strong>MATEO 24:14</strong>
+        </p>
+      </div>
+    </header>
+
+    <h2 class="choose-title">Who are you today?</h2>
+
+    <section class="cards-grid" aria-label="Choose your broadcast role">
+      <article class="role-card">
+        <div class="role-card-top">
+          <div class="role-icon-wrap" aria-hidden="true">
+            <svg class="role-icon" viewBox="0 0 64 64">
+              <rect x="5" y="12" width="24" height="31" rx="1"></rect>
+              <rect x="35" y="12" width="24" height="31" rx="1"></rect>
+              <path d="M17 43v7m30-7v7M11 51h42M11 18h12v19H11zM41 18h12v19H41z"></path>
+            </svg>
+          </div>
+          <h3 class="role-name">Operator</h3>
           <p class="role-desc">
-            Full 4-Slot Permanent Workspace. Nakikita kung sinong Slot Operators ang nakakonekta, nakakapagpalit ng Display Mode (1/2/3/4), Background, Font, at Highlights.
+            Send verses live to every screen, with PREVIEW, TAKE, and access to 100+ Bible versions.
           </p>
         </div>
-        <a href="/operator/index.html" class="role-btn btn-admin">Buksan ang Main Operator ▶</a>
-      </div>
+        <a href="/operator/index.html" class="role-btn">Open Verse Operation <span aria-hidden="true">→</span></a>
+      </article>
 
-      <div class="role-card">
-        <div>
-          <div class="role-icon">🕹️</div>
-          <h2 class="role-name" style="color:#38bdf8;">Slot Operators (1 - 4)</h2>
+      <article class="role-card">
+        <div class="role-card-top">
+          <div class="role-icon-wrap" aria-hidden="true">
+            <svg class="role-icon" viewBox="0 0 64 64">
+              <rect x="7" y="11" width="50" height="34" rx="2"></rect>
+              <path d="M32 45v8m-12 0h24M18 22h28M18 29h20"></path>
+            </svg>
+          </div>
+          <h3 class="role-name">Viewer</h3>
           <p class="role-desc">
-            Slave controller para sa nakatalagang Slot. Mag-log in gamit ang iyong pangalan para mag-pilot ng talata, Next/Back, at Translation nang hindi nagagalaw ang BG o Highlights.
+            Follow an operator on your phone, a big screen, or vMix/OBS, in the version you choose.
           </p>
         </div>
-        <div class="slot-quick-grid">
-          <a href="/operator/slotoperator.html?slot=1" class="slot-quick-btn">🕹️ Pilot Slot 1</a>
-          <a href="/operator/slotoperator.html?slot=2" class="slot-quick-btn">🕹️ Pilot Slot 2</a>
-          <a href="/operator/slotoperator.html?slot=3" class="slot-quick-btn">🕹️ Pilot Slot 3</a>
-          <a href="/operator/slotoperator.html?slot=4" class="slot-quick-btn">🕹️ Pilot Slot 4</a>
-        </div>
-      </div>
+        <a href="/output/output.html" target="_blank" rel="noopener noreferrer" class="role-btn">
+          Open the viewer <span aria-hidden="true">→</span>
+        </a>
+      </article>
 
-      <div class="role-card">
-        <div>
-          <div class="role-icon">🖍️</div>
-          <h2 class="role-name" style="color:#a78bfa;">Highlighter Station</h2>
+      <article class="role-card">
+        <div class="role-card-top">
+          <div class="role-icon-wrap" aria-hidden="true">
+            <svg class="role-icon" viewBox="0 0 64 64">
+              <rect x="8" y="8" width="19" height="19" rx="2"></rect>
+              <rect x="37" y="8" width="19" height="19" rx="2"></rect>
+              <rect x="8" y="37" width="19" height="19" rx="2"></rect>
+              <rect x="37" y="37" width="19" height="19" rx="2"></rect>
+            </svg>
+          </div>
+          <h3 class="role-name">Slot Operators</h3>
           <p class="role-desc">
-            Dedicated station para sa pag-highlight at pag-clear ng mga salita sa alinmang Slot (1-4) nang real-time habang nagsasalita ang mangangaral.
+            Control your assigned slot. Choose a slot below to pilot verses, Next/Back, and translation.
           </p>
         </div>
-        <a href="/highlighter/" class="role-btn btn-purple">Buksan ang Highlighter ▶</a>
-      </div>
+        <nav class="slot-quick-grid" aria-label="Choose a slot">
+          <a href="/operator/slotoperator.html?slot=1" class="slot-quick-btn">Slot 1</a>
+          <a href="/operator/slotoperator.html?slot=2" class="slot-quick-btn">Slot 2</a>
+          <a href="/operator/slotoperator.html?slot=3" class="slot-quick-btn">Slot 3</a>
+          <a href="/operator/slotoperator.html?slot=4" class="slot-quick-btn">Slot 4</a>
+        </nav>
+      </article>
 
-      <div class="role-card">
-        <div>
-          <div class="role-icon">📺</div>
-          <h2 class="role-name" style="color:#4ade80;">Live Broadcast Output</h2>
+      <article class="role-card">
+        <div class="role-card-top">
+          <div class="role-icon-wrap" aria-hidden="true">
+            <svg class="role-icon" viewBox="0 0 64 64">
+              <path d="m42 8 14 14-28 28-14 3 3-14L42 8z"></path>
+              <path d="m35 15 14 14M12 53l14-3M8 59h48"></path>
+            </svg>
+          </div>
+          <h3 class="role-name">Highlighter</h3>
           <p class="role-desc">
-            Clean HTML5 Output feed para sa vMix, OBS Browser Source, o Projector Display. Sumusunod nang live sa 1 Full, 2 Split, 3 Split, at 4 Grid modes.
+            Highlight or clear words in any of the four live slots in real time while the sermon is in progress.
           </p>
         </div>
-        <a href="/output/output.html" target="_blank" class="role-btn btn-emerald">Buksan ang Live Output ↗</a>
-      </div>
-    </div>
+        <a href="/highlighter/" class="role-btn">Open Highlighter <span aria-hidden="true">→</span></a>
+      </article>
+    </section>
 
-    <div class="portal-footer">
-      Tip: Maaaring buksan ang link na ito sa iba't ibang laptop, tablet, o phone na nakakonekta sa parehong Local Network (Wi-Fi / LAN).
-    </div>
-  </div>
+    <footer class="portal-footer">
+      Open this portal on any laptop, tablet, or phone connected to your broadcast network.
+    </footer>
+  </main>
 </body>
 </html>
