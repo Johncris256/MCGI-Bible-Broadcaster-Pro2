@@ -636,7 +636,7 @@
     border-radius: 14px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     perspective: 1600px;
-    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scale(var(--slot-scale, 1)) scaleY(var(--slot-zoom-y, 1));
+    transform: translate3d(var(--slot-pan-x, 0px), var(--slot-pan-y, 0px), 0) scale(var(--slot-scale, 1)) scaleX(var(--slot-zoom-x, 1)) scaleY(var(--slot-zoom-y, 1));
     transform-origin: center center;
   }
   #multiSlotStage > .render-box.transparent-verse-box .slot-canvas {
@@ -655,48 +655,47 @@
     overflow: hidden !important;
   }
 
-  /* 1 Full, 3-Split and 4-Grid anchored vertical zoom:
-     treat the full 3-card composition as one frame. The top edge stays pinned;
-     Zoom Y only expands/compresses content below that top edge. */
+  /* 1 Full, 3-Split and 4-Grid use a shared composition frame for X/Y zoom.
+     The top edge remains pinned while Pan X/Pan Y move the whole composition. */
   #multiSlotStage.mode-1,
   #multiSlotStage.mode-3,
   #multiSlotStage.mode-4 {
-    /* Treat each layout as one frame: pin its top edge and scale downward. */
-    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scaleY(var(--slot-zoom-y, 1)) !important;
+    transform: translate3d(var(--slot-pan-x, 0px), var(--slot-pan-y, 0px), 0)
+      scaleX(var(--slot-zoom-x, 1)) scaleY(var(--slot-zoom-y, 1)) !important;
     transform-origin: 50% 0% !important;
   }
   #multiSlotStage.mode-1 .slot-canvas,
   #multiSlotStage.mode-3 .slot-canvas,
   #multiSlotStage.mode-4 .slot-canvas {
-    /* Keep each card's own fit; apply vertical Zoom Y only once to the whole frame. */
+    /* Shared frame handles X/Y zoom; keep only the layout's per-card split scale. */
     transform: scale(var(--slot-scale, 1)) !important;
   }
 
 </style>
 
 <style id="ALL-MODE-PROPORTIONAL-TEXT">
-  /* Keep reference and translation labels fixed in size and anchored at the
-     upper-left of each Verse Box, independent of Zoom Y. */
+  /* Keep reference and translation labels fixed in shape while X/Y Zoom changes;
+     their font size remains controlled by each layout's Title Size slider. */
   #multiSlotStage.mode-1 .reference-text-guard,
   #multiSlotStage.mode-2 .reference-text-guard,
   #multiSlotStage.mode-3 .reference-text-guard,
   #multiSlotStage.mode-4 .reference-text-guard {
-    transform: scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform: scaleX(var(--slot-zoom-x-inverse, 1)) scaleY(var(--slot-zoom-y-inverse, 1)) !important;
     transform-origin: top left !important;
-    width: 100%;
+    width: var(--slot-zoom-x-width, 100%);
     min-width: 0;
   }
 
-  /* Keep verse glyphs proportional in every layout. Below 100% Zoom Y, the
-     JS fit calculation reduces font-size uniformly before this Y compensation. */
+  /* Keep verse glyphs proportional in every layout. Below 100% Zoom X/Y, the
+     JS fit calculation reduces font-size uniformly before inverse compensation. */
   #multiSlotStage.mode-1 .verse-text-guard,
   #multiSlotStage.mode-2 .verse-text-guard,
   #multiSlotStage.mode-3 .verse-text-guard,
   #multiSlotStage.mode-4 .verse-text-guard {
-    transform: scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform: scaleX(var(--slot-zoom-x-inverse, 1)) scaleY(var(--slot-zoom-y-inverse, 1)) !important;
     transform-origin: top center !important;
-    width: 100%;
-    max-width: 100%;
+    width: var(--slot-zoom-x-width, 100%);
+    max-width: var(--slot-zoom-x-width, 100%);
     min-width: 0;
   }
 </style>
@@ -719,7 +718,7 @@
     </div>
     </div>
   </div>
-  <script src="output.js?v=20261101-layout-defaults-v3"></script>
+  <script src="output.js?v=20261104-xy-title-v1"></script>
 
 
 
