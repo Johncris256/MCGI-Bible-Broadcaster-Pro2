@@ -10,6 +10,15 @@
     const persistentHighlights = { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set() };
     const slotVerseSignatures = ['', '', '', ''];
 
+    window.clearOutputPersistentHighlights = function() {
+      for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+      const stage = document.getElementById('multiSlotStage') || document.body;
+      stage.querySelectorAll('.active-highlight').forEach(el => {
+        el.classList.remove('active-highlight', 'highlight-start', 'highlight-end');
+        el.removeAttribute('data-highlighted');
+      });
+    };
+
     function getVisibleBoxes() {
       const stage = document.getElementById('multiSlotStage') || document.body;
       return Array.from(stage.querySelectorAll('.render-box, [id*="slot"], [class*="slot"]')).filter(b => {
@@ -70,19 +79,26 @@
         }
 
         if (msg.type === 'SET_SLOT_HIGHLIGHT') {
-          const sIdx = msg.slotIndex;
+          const sIdx = Number(msg.slotIndex);
+          const sourceWordIndex = Number(msg.wordIndex);
+          const mappedWordIndex = typeof window.mapOutputViewerHighlightIndex === 'function'
+            ? window.mapOutputViewerHighlightIndex(sIdx, sourceWordIndex)
+            : sourceWordIndex;
+          if (!Number.isInteger(sIdx) || sIdx < 0 || sIdx > 3 ||
+              !Number.isInteger(mappedWordIndex) || mappedWordIndex < 0) return;
+
           if (msg.isHighlighted) {
-            persistentHighlights[sIdx].add(msg.wordIndex);
+            persistentHighlights[sIdx].add(mappedWordIndex);
           } else {
-            persistentHighlights[sIdx].delete(msg.wordIndex);
+            persistentHighlights[sIdx].delete(mappedWordIndex);
           }
 
           const boxes = getVisibleBoxes();
           const targetBox = boxes[sIdx];
           if (targetBox) {
             const words = Array.from(targetBox.querySelectorAll('.ndi-word, span')).filter(w => w.innerText.trim());
-            if (words[msg.wordIndex]) {
-              words[msg.wordIndex].classList.toggle('active-highlight', !!msg.isHighlighted);
+            if (words[mappedWordIndex]) {
+              words[mappedWordIndex].classList.toggle('active-highlight', !!msg.isHighlighted);
             }
           }
           return;
@@ -711,6 +727,125 @@
       inset 0 0 0 1px rgba(240, 213, 150, 0.20) !important;
   }
 </style>
+<style id="OUTPUT_VIEWER_TRANSLATION_MENU_STYLE">
+  .viewer-translation-context-menu {
+    position: fixed;
+    z-index: 2147483647;
+    display: none;
+    width: 220px;
+    color: #e5e7eb;
+    font: 13px/1.35 Arial, Helvetica, sans-serif;
+    user-select: none;
+  }
+  .viewer-translation-context-menu.open { display: block; }
+  .viewer-translation-main-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid rgba(212, 175, 55, .55);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, .98);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .42);
+    color: #f8fafc;
+    cursor: default;
+    font-weight: 700;
+  }
+  .viewer-translation-main-item:hover,
+  .viewer-translation-context-menu.submenu-open .viewer-translation-main-item {
+    background: #263449;
+  }
+  .viewer-translation-chevron { color: #e8c66a; font-size: 20px; margin-left: 14px; }
+  .viewer-translation-submenu {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    display: none;
+    width: 310px;
+    max-width: min(310px, 80vw);
+    padding: 11px;
+    border: 1px solid rgba(212, 175, 55, .55);
+    border-radius: 9px;
+    background: rgba(15, 23, 42, .985);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .48);
+  }
+  .viewer-translation-context-menu.submenu-open .viewer-translation-submenu { display: block; }
+  .viewer-translation-context-menu.flip .viewer-translation-submenu { left: auto; right: 100%; }
+  .viewer-translation-menu-heading {
+    color: #f1d58a;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .8px;
+  }
+  .viewer-translation-menu-note,
+  .viewer-translation-menu-footer {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-top: 3px;
+  }
+  .viewer-translation-search {
+    display: block;
+    width: 100%;
+    height: 34px;
+    margin: 10px 0 7px;
+    padding: 0 10px;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    outline: none;
+    background: #0b1220;
+    color: #f8fafc;
+    font: inherit;
+  }
+  .viewer-translation-search:focus { border-color: #d4af37; }
+  .viewer-translation-options {
+    max-height: min(52vh, 390px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+  .viewer-translation-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 9px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #e2e8f0;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+  }
+  .viewer-translation-option:hover { background: rgba(148, 163, 184, .16); color: #fff; }
+  .viewer-translation-option.selected { background: rgba(212, 175, 55, .15); color: #f8df9a; }
+  .viewer-translation-option.follow-operator { margin-bottom: 6px; border-bottom: 1px solid #334155; border-radius: 5px 5px 0 0; }
+  .viewer-translation-check { color: #facc15; font-weight: 800; margin-left: 9px; }
+  .viewer-translation-empty { padding: 12px 8px; color: #94a3b8; font-size: 12px; }
+  .viewer-translation-menu-footer { padding-top: 8px; border-top: 1px solid #334155; margin-top: 8px; }
+  .viewer-translation-menu-status { min-height: 15px; color: #86efac; font-size: 11px; margin-top: 5px; }
+  .viewer-translation-menu-status.error { color: #fca5a5; }
+  .output-viewer-translation-toast {
+    position: fixed;
+    z-index: 2147483647;
+    left: 50%;
+    bottom: 22px;
+    transform: translate(-50%, 10px);
+    padding: 10px 16px;
+    border: 1px solid rgba(212, 175, 55, .6);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, .96);
+    color: #f8fafc;
+    font: 13px Arial, Helvetica, sans-serif;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .output-viewer-translation-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+  .output-viewer-translation-toast.error { border-color: rgba(248, 113, 113, .7); }
+</style>
 </head>
 <body>
   <div id="multiSlotStage" class="mode-1">
@@ -731,6 +866,8 @@
     </div>
   </div>
   <script src="output.js?v=20261104-xy-title-v1"></script>
+  <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
+  <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
 
 
 
