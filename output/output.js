@@ -73,7 +73,7 @@ function updateHighlightClasses(container, wordsLength, highSet) {
   }
 }
 
-function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFontSizes, letterSpacingPx, lineSpacing) {
+function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFontSizes, letterSpacingPx, lineSpacing, modeSettings) {
   const canvas = boxEl.querySelector('.slot-canvas');
   const container = boxEl.querySelector('.verse-container');
   const text = boxEl.querySelector('.verse-text');
@@ -83,12 +83,22 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
 
   const baseRefSz = (fontsObj && parseInt(fontsObj.refSize, 10)) || 60;
   const baseVerSz = (fontsObj && parseInt(fontsObj.verSize, 10)) || 45;
+  const requestedTitleSize = Number(modeSettings && modeSettings.titleSize);
+  const effectiveRefSize = Number.isFinite(requestedTitleSize)
+    ? Math.min(120, Math.max(20, requestedTitleSize)) : baseRefSz;
+  // Keep the reference and translation label in their original size ratio.
+  const titleScale = effectiveRefSize / Math.max(1, baseRefSz);
+  const effectiveVerSize = baseVerSz * titleScale;
   const stage = boxEl.closest('#multiSlotStage');
+  const rawZoomX = stage ? Number(stage.style.getPropertyValue('--slot-zoom-x')) : 1;
   const rawZoomY = stage ? Number(stage.style.getPropertyValue('--slot-zoom-y')) : 1;
-  const isVerticalFramedMode = displayMode >= 1 && displayMode <= 4;
-  const zoomY = (isVerticalFramedMode && Number.isFinite(rawZoomY) && rawZoomY > 0)
+  const isFramedMode = displayMode >= 1 && displayMode <= 4;
+  const zoomX = (isFramedMode && Number.isFinite(rawZoomX) && rawZoomX > 0)
+    ? Math.min(1.5, Math.max(0.5, rawZoomX)) : 1;
+  const zoomY = (isFramedMode && Number.isFinite(rawZoomY) && rawZoomY > 0)
     ? Math.min(1.5, Math.max(0.5, rawZoomY)) : 1;
-  const fontFitScale = isVerticalFramedMode ? Math.min(zoomY, 1) : 1;
+  const fontFitScaleY = isFramedMode ? Math.min(zoomY, 1) : 1;
+  const fontFitScaleX = isFramedMode ? Math.min(zoomX, 1) : 1;
   const contentText = text.textContent.trim();
   const lengthBasedMax = getLengthBasedFontSize(contentText, lengthFontSizes);
   const requestedMax = Math.min(100, Math.max(28, Number.parseInt(baseMaxSize, 10) || 100));
@@ -99,20 +109,21 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   const letterSpacing = readClampedFloat(letterSpacingPx, 0, -2, 10, 1);
   const lineHeight = readClampedFloat(lineSpacing, 1.55, 0.8, 2.5, 2);
 
-  // Keep reference/version size fixed. Verse text receives per-layout spacing
-  // and length-based sizing, then is uniformly fitted to the available area.
-  if (refTitle) refTitle.style.fontSize = baseRefSz + 'px';
-  if (verSub) verSub.style.fontSize = baseVerSz + 'px';
+  // The per-layout Title Size scales both header labels together. Verse text
+  // keeps its independent content-length target and is fitted to the X/Y frame.
+  if (refTitle) refTitle.style.fontSize = effectiveRefSize + 'px';
+  if (verSub) verSub.style.fontSize = effectiveVerSize + 'px';
   text.style.setProperty('letter-spacing', letterSpacing + 'px', 'important');
   text.style.setProperty('line-height', String(lineHeight), 'important');
   text.style.width = '100%';
   text.style.maxHeight = '100%';
   text.style.overflow = 'hidden';
 
-  const usableHeight = container.clientHeight * fontFitScale;
+  const usableHeight = container.clientHeight * fontFitScaleY;
+  const usableWidth = container.clientWidth * fontFitScaleX;
   const fitKey = [
-    text.dataset.verseKey || '', effectiveMax, baseRefSz, baseVerSz,
-    fontFitScale, letterSpacing, lineHeight, container.clientWidth, container.clientHeight
+    text.dataset.verseKey || '', effectiveMax, effectiveRefSize, effectiveVerSize,
+    fontFitScaleX, fontFitScaleY, letterSpacing, lineHeight, container.clientWidth, container.clientHeight
   ].join('|');
   if (text.dataset.fontFitKey === fitKey && text.dataset.fittedFontSize) return;
 
@@ -123,7 +134,7 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
     const mid = Math.floor((low + high) / 2);
     text.style.fontSize = mid + 'px';
     if (text.scrollHeight <= usableHeight + 1 &&
-        text.scrollWidth <= container.clientWidth + 1) {
+        text.scrollWidth <= usableWidth + 1) {
       best = mid;
       low = mid + 1;
     } else {
@@ -156,12 +167,20 @@ function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
   stage.style.setProperty('--slot-scale', String(Math.max(0.05, scale)));
 }
 
-function applyModeVerticalAdjustment(stage, displayMode, adjustments) {
+function applyModeFramingAdjustment(stage, displayMode, adjustments) {
   const modeValue = adjustments && adjustments[displayMode] ? adjustments[displayMode] : {};
-  const zoom = Number(modeValue.zoomY);
-  const pan = Number(modeValue.panY);
-  const zoomY = Math.min(1.5, Math.max(0.5, (Number.isFinite(zoom) ? zoom : 100) / 100));
-  const panY = Math.min(400, Math.max(-400, Number.isFinite(pan) ? pan : 0));
+  const rawZoomX = Number(modeValue.zoomX);
+  const rawPanX = Number(modeValue.panX);
+  const rawZoomY = Number(modeValue.zoomY);
+  const rawPanY = Number(modeValue.panY);
+  const zoomX = Math.min(1.5, Math.max(0.5, (Number.isFinite(rawZoomX) ? rawZoomX : 100) / 100));
+  const panX = Math.min(400, Math.max(-400, Number.isFinite(rawPanX) ? rawPanX : 0));
+  const zoomY = Math.min(1.5, Math.max(0.5, (Number.isFinite(rawZoomY) ? rawZoomY : 100) / 100));
+  const panY = Math.min(400, Math.max(-400, Number.isFinite(rawPanY) ? rawPanY : 0));
+  stage.style.setProperty('--slot-zoom-x', String(zoomX));
+  stage.style.setProperty('--slot-zoom-x-inverse', String(1 / zoomX));
+  stage.style.setProperty('--slot-zoom-x-width', (zoomX * 100) + '%');
+  stage.style.setProperty('--slot-pan-x', panX + 'px');
   stage.style.setProperty('--slot-zoom-y', String(zoomY));
   stage.style.setProperty('--slot-zoom-y-inverse', String(1 / zoomY));
   stage.style.setProperty('--slot-pan-y', panY + 'px');
@@ -246,7 +265,7 @@ function renderOutputState(data) {
   const stage = document.getElementById('multiSlotStage');
   stage.className = `mode-${displayMode}`;
   fitOutputStageTo16x9(stage, outerMargin, displayMode);
-  applyModeVerticalAdjustment(stage, displayMode, s.modeAdjustments);
+  applyModeFramingAdjustment(stage, displayMode, s.modeAdjustments);
 
   const slotsList = Array.isArray(data.slots) && data.slots.length > 0
     ? data.slots.slice(0, displayMode)
@@ -319,7 +338,7 @@ function renderOutputState(data) {
 
     updateHighlightClasses(contentEl, wordsArr.length, highSet);
     applyBoxTypography(boxEl, data.fonts);
-    adjustSlotFontSize(boxEl, baseMaxFont, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing);
+    adjustSlotFontSize(boxEl, baseMaxFont, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing, modeSettings);
   });
 }
 
