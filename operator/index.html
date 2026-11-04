@@ -446,10 +446,10 @@
     <div class="op-row-3">
       <div class="mode-group">
         <span class="mode-label">OUTPUT DISPLAY MODE:</span>
-        <button type="button" class="mode-pill active" data-mode="1" title="Left-click: select layout Â· Right-click: adjust Zoom Y / Pan Y">1 Full (Slot 1 Live)</button>
-        <button type="button" class="mode-pill" data-mode="2" title="Left-click: select layout · Right-click: adjust Zoom Y / Pan Y">2 Split (Side-by-Side)</button>
-        <button type="button" class="mode-pill" data-mode="3" title="Left-click: select layout · Right-click: adjust Zoom Y / Pan Y">3 Split</button>
-        <button type="button" class="mode-pill" data-mode="4" title="Left-click: select layout · Right-click: adjust Zoom Y / Pan Y">4 Grid (2x2)</button>
+        <button type="button" class="mode-pill active" data-mode="1" title="Left-click: select layout · Right-click: adjust layout settings">1 Full (Slot 1 Live)</button>
+        <button type="button" class="mode-pill" data-mode="2" title="Left-click: select layout · Right-click: adjust layout settings">2 Split (Side-by-Side)</button>
+        <button type="button" class="mode-pill" data-mode="3" title="Left-click: select layout · Right-click: adjust layout settings">3 Split</button>
+        <button type="button" class="mode-pill" data-mode="4" title="Left-click: select layout · Right-click: adjust layout settings">4 Grid (2x2)</button>
       </div>
       <div class="workspace-status">
         Operator Screen: <strong>Permanent 4-Slot Workspace (HTML5)</strong>
@@ -457,12 +457,24 @@
     </div>
   </header>
 
-  <!-- Right-click menu for independent vertical framing in all output layouts -->
+  <!-- Right-click menu for independent horizontal/vertical framing and typography in all output layouts -->
   <div id="modeAdjustMenu" class="mode-adjust-menu" role="dialog" aria-label="Per-layout framing and typography settings" aria-modal="false">
     <div class="mode-adjust-head">
       <strong id="modeAdjustTitle">1 Full — Layout Settings</strong>
       <button type="button" id="modeAdjustClose" class="mode-adjust-close" aria-label="Close">×</button>
     </div>
+    <div class="mode-adjust-section-label">Horizontal Framing</div>
+    <div class="mode-adjust-row">
+      <label for="modeAdjustZoomX">Zoom X</label>
+      <input id="modeAdjustZoomX" type="range" min="50" max="150" step="1" value="100">
+      <span id="modeAdjustZoomXValue" class="mode-adjust-value">100%</span>
+    </div>
+    <div class="mode-adjust-row">
+      <label for="modeAdjustPanX">Pan X</label>
+      <input id="modeAdjustPanX" type="range" min="-400" max="400" step="1" value="0">
+      <span id="modeAdjustPanXValue" class="mode-adjust-value">0px</span>
+    </div>
+    <div class="mode-adjust-section-label">Vertical Framing</div>
     <div class="mode-adjust-row">
       <label for="modeAdjustZoomY">Zoom Y</label>
       <input id="modeAdjustZoomY" type="range" min="50" max="150" step="1" value="100">
@@ -474,7 +486,12 @@
       <span id="modeAdjustPanYValue" class="mode-adjust-value">0px</span>
     </div>
     <hr class="mode-adjust-divider">
-    <div class="mode-adjust-section-label">Verse Box & Typography</div>
+    <div class="mode-adjust-section-label">Header & Verse Typography</div>
+    <div class="mode-adjust-row">
+      <label for="modeAdjustTitleSize">Title Size</label>
+      <input id="modeAdjustTitleSize" type="range" min="20" max="120" step="1" value="60">
+      <span id="modeAdjustTitleSizeValue" class="mode-adjust-value">60px</span>
+    </div>
     <div class="mode-adjust-row">
       <label for="modeAdjustTopGap">Title-to-Verse Gap</label>
       <input id="modeAdjustTopGap" type="range" min="0" max="120" step="1" value="11">
@@ -495,7 +512,7 @@
       <input id="modeAdjustLineSpacing" type="range" min="0.8" max="2.5" step="0.05" value="1.20">
       <span id="modeAdjustLineSpacingValue" class="mode-adjust-value">1.20</span>
     </div>
-    <p class="mode-adjust-note">Verse font size follows the active content-length range, capped only by Global Max (default 100px). Letter and line spacing are shared by Output and Highlighter. Each layout keeps its own framing and spacing settings.</p>
+    <p class="mode-adjust-note">Title Size scales the reference and Bible-version labels together. Verse font size follows the active content-length range, capped by Global Max (default 100px). Each layout keeps independent X/Y framing, title size and verse spacing.</p>
     <div class="mode-adjust-actions">
       <button type="button" id="modeAdjustReset">Reset</button>
       <button type="button" id="modeAdjustClosePrimary" class="primary">Done</button>
@@ -887,7 +904,7 @@
     </div>
   </div>
 
-  <script src="operator.js?v=20261101-layout-defaults-v3"></script>
+  <script src="operator.js?v=20261104-xy-title-v2"></script>
 
 
 
