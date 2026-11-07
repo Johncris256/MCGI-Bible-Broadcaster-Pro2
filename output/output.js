@@ -35,6 +35,9 @@ function applyAnimationVariables(anim) {
 }
 
 function triggerVerseAnimation(container, anim, direction) {
+  // Layout-mode transitions animate the complete 16:9 canvas. Suppress the
+  // separate verse-content entrance animation during that same transition.
+  if (window.__bibleLayoutTransitionInProgress) return;
   ALL_ANIM_CLASSES.forEach(cls => container.classList.remove(cls));
   const a = anim || {};
   if (a.enabled === false) return;
@@ -81,14 +84,28 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   const verSub = boxEl.querySelector('.version-subtitle');
   if (!canvas || !container || !text) return;
 
-  const baseRefSz = (fontsObj && parseInt(fontsObj.refSize, 10)) || 60;
-  const baseVerSz = (fontsObj && parseInt(fontsObj.verSize, 10)) || 45;
+  // Reference title and translation/version label are independent controls.
+  // The font dialog sends fontsObj.refSize and fontsObj.verSize separately;
+  // never scale the version label from the reference title size.
+  const readHeaderFontSize = (value, fallback) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed)
+      ? Math.min(120, Math.max(20, parsed))
+      : fallback;
+  };
+  const rawRefSize = fontsObj && fontsObj.refSize;
+  const hasExplicitRefSize = rawRefSize !== undefined && rawRefSize !== null &&
+    String(rawRefSize).trim() !== '' && Number.isFinite(Number.parseInt(rawRefSize, 10));
   const requestedTitleSize = Number(modeSettings && modeSettings.titleSize);
-  const effectiveRefSize = Number.isFinite(requestedTitleSize)
-    ? Math.min(120, Math.max(20, requestedTitleSize)) : baseRefSz;
-  // Keep the reference and translation label in their original size ratio.
-  const titleScale = effectiveRefSize / Math.max(1, baseRefSz);
-  const effectiveVerSize = baseVerSz * titleScale;
+  // Keep compatibility with older payloads that only supplied mode titleSize.
+  // A separately supplied reference font size always takes precedence.
+  const fallbackRefSize = Number.isFinite(requestedTitleSize)
+    ? readHeaderFontSize(requestedTitleSize, 60)
+    : 60;
+  const effectiveRefSize = hasExplicitRefSize
+    ? readHeaderFontSize(rawRefSize, 60)
+    : fallbackRefSize;
+  const effectiveVerSize = readHeaderFontSize(fontsObj && fontsObj.verSize, 45);
   // Typography is fitted once on the native 16:9 canvas. Zoom X/Y then
   // stretches/compresses the canvas and every text element together.
   const contentText = text.textContent.trim();
@@ -430,6 +447,14 @@ renderOutputState = function(data) {
 
   // 3. APPLY MOVE SWAP ANIMATION
   setTimeout(() => {
+    // Do not stack the legacy per-card swap animation on top of a layout FLIP.
+    // Still refresh the text cache so the next ordinary verse update is clean.
+    if (window.__bibleLayoutTransitionInProgress) {
+      document.querySelectorAll('.render-box, .verse-box').forEach((card, idx) => {
+        lastRenderedText[idx] = card.textContent.trim();
+      });
+      return;
+    }
     document.querySelectorAll('.render-box, .verse-box').forEach((card, idx) => {
       const txt = card.textContent.trim();
       if (lastRenderedText[idx] !== txt && txt.length > 0) {
