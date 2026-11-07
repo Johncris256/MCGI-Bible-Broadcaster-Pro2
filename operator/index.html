@@ -1184,6 +1184,8 @@
               words[wIdx].classList.toggle('active-highlight', isHl);
             }
           }
+          // OPERATOR_MASTER_HIGHLIGHT_SYNC_V1: publish Highlighter changes as canonical Operator state.
+          if (typeof syncState === 'function') syncState();
         }
         if (action.type === 'CLEAR_ALL_HIGHLIGHTS') {
           if (typeof slots !== 'undefined') {
@@ -1198,6 +1200,8 @@
               w.classList.remove('active-highlight', 'highlighted');
             });
           });
+          // OPERATOR_MASTER_HIGHLIGHT_SYNC_V1: publish Highlighter clear as canonical Operator state.
+          if (typeof syncState === 'function') syncState();
         }
       } catch(err) {}
     };
