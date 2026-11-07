@@ -90,10 +90,10 @@ const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customO
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
   1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 11, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  3: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20 }),
-  4: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20 })
+  3: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
+  4: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
 });
-const MODE_DEFAULTS_VERSION = '2026-11-04-layout-xy-title-v2';
+const MODE_DEFAULTS_VERSION = '2026-11-07-layout-xy-title-v4';
 function getDefaultModeAdjustment(mode) {
   return { ...(DEFAULT_MODE_ADJUSTMENTS[mode] || DEFAULT_MODE_ADJUSTMENTS[1]) };
 }
@@ -143,6 +143,19 @@ function migrateLegacyModeDefaults(value, mode) {
   if (previousXYTitleDefaults) {
     Object.keys(previousXYTitleDefaults).forEach(field => {
       if (item[field] !== undefined && item[field] !== null && Number(item[field]) === Number(previousXYTitleDefaults[field])) {
+        item[field] = defaults[field];
+      }
+    });
+  }
+  // Upgrade the untouched 82% Zoom X/Y values from the previous 3 Split / 4 Grid defaults.
+  // Values other than 82% remain as deliberate operator customizations.
+  const previousSplitZoomDefaults = {
+    3: { zoomX: 82, zoomY: 82 },
+    4: { zoomX: 82, zoomY: 82 }
+  }[mode];
+  if (previousSplitZoomDefaults) {
+    Object.keys(previousSplitZoomDefaults).forEach(field => {
+      if (item[field] !== undefined && item[field] !== null && Number(item[field]) === previousSplitZoomDefaults[field]) {
         item[field] = defaults[field];
       }
     });
