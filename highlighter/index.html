@@ -139,7 +139,41 @@
 </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<style id="MCGI_DISABLE_NATIVE_CONTEXT_MENU_V8">
+  /* Prevent Android/iOS browser callouts and text-selection menus during highlighting. */
+  html, body, html *, body * {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+</style>
+<script id="MCGI_DISABLE_NATIVE_CONTEXT_MENU_V8">
+(function () {
+  'use strict';
+
+  // Block right-click and long-press browser context menus globally.
+  // Do not cancel pointerdown/pointermove: Highlighter's own tap and
+  // press-and-hold drag-to-highlight gesture must keep working.
+  function suppressNativeContextMenu(event) {
+    if (event && event.cancelable) event.preventDefault();
+    if (event && typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    return false;
+  }
+
+  window.addEventListener('contextmenu', suppressNativeContextMenu, true);
+  document.addEventListener('contextmenu', suppressNativeContextMenu, true);
+
+  // Keep the page from entering native text-selection or image/element drag mode.
+  document.addEventListener('selectstart', suppressNativeContextMenu, true);
+  document.addEventListener('dragstart', suppressNativeContextMenu, true);
+})();
+</script>
+
   <title>Live Output Mirror — Highlighter</title>
+  <!-- HIGHLIGHTER_INDEPENDENT_DEFAULTS_V6: split padding 50px; reference 30px; translation 15px -->
   <style>
     :root {
       --hl-font-color: #ffd700;
@@ -574,6 +608,584 @@
     min-width: 0;
   }
 </style>
+
+<style id="PORTRAIT-RESPONSIVE-RASTER-HIGHLIGHTER">
+  /* Canvas is the crisp, high-DPI visual layer. The DOM words remain in place
+     underneath it as an invisible hit layer, so tap/drag highlighting stays live. */
+  #multiSlotStage .verse-container {
+    position: relative !important;
+  }
+  #multiSlotStage .verse-text-guard {
+    position: relative !important;
+    display: block !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 100% !important;
+  }
+  #multiSlotStage .verse-raster-canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+  }
+  #multiSlotStage .verse-text.raster-hit-layer {
+    position: relative !important;
+    z-index: 2 !important;
+    color: transparent !important;
+    text-shadow: none !important;
+    background: transparent !important;
+  }
+  #multiSlotStage .verse-text.raster-hit-layer .ndi-word,
+  #multiSlotStage .verse-text.raster-hit-layer .ndi-space {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: none !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+  #multiSlotStage .verse-text.raster-fallback,
+  #multiSlotStage .verse-text.raster-fallback .ndi-word,
+  #multiSlotStage .verse-text.raster-fallback .ndi-space {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+
+  /* In portrait, use the actual tall phone viewport instead of shrinking a
+     16:9 master canvas into a short strip. Slot cards become taller. */
+  body.portrait-orientation #mirrorViewport {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    padding: clamp(6px, 2vw, 12px) !important;
+  }
+  body.portrait-orientation #multiSlotStage {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: auto !important;
+    gap: clamp(6px, 1.5vw, 10px) !important;
+    overflow: hidden !important;
+  }
+  body.portrait-orientation #multiSlotStage.mode-1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  /* Two slots stack vertically on a phone so each verse gets useful width. */
+  body.portrait-orientation #multiSlotStage.mode-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  }
+  /* 3-Split and 4-Grid keep the familiar two-column arrangement, but use
+     the portrait height rather than the old 16:9 height. */
+  body.portrait-orientation #multiSlotStage.mode-3,
+  body.portrait-orientation #multiSlotStage.mode-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  }
+  body.portrait-orientation #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+  body.portrait-orientation #multiSlotStage > .render-box {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  body.portrait-orientation #multiSlotStage .slot-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    padding: clamp(8px, 2.4vw, 16px) !important;
+    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scaleY(var(--slot-zoom-y, 1)) !important;
+    transform-origin: center center !important;
+    border-radius: clamp(10px, 2vw, 16px) !important;
+  }
+  body.portrait-orientation #multiSlotStage .reference-container {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+    margin-bottom: clamp(2px, .65vw, 6px) !important;
+  }
+  body.portrait-orientation #multiSlotStage .reference-text-guard {
+    min-width: 0 !important;
+  }
+  body.portrait-orientation #multiSlotStage .verse-container {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  body.portrait-orientation #multiSlotStage .verse-text {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    line-height: 1.32 !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+  /* The raster and hit layers must share exactly the same portrait geometry. */
+  body.portrait-orientation #multiSlotStage.mode-3 .reference-text-guard,
+  body.portrait-orientation #multiSlotStage.mode-3 .verse-text-guard {
+    transform: none !important;
+  }
+
+  /* Landscape phone: each card uses its actual grid-cell size, not a
+     scaled-down 16:9 master canvas. This keeps verse text large and visible. */
+  body.landscape-phone #mirrorViewport {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    padding: clamp(4px, 1vw, 10px) !important;
+  }
+  body.landscape-phone #multiSlotStage {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: auto !important;
+    gap: clamp(6px, 1vw, 12px) !important;
+    overflow: hidden !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-3,
+  body.landscape-phone #multiSlotStage.mode-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+  body.landscape-phone #multiSlotStage > .render-box {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+  body.landscape-phone #multiSlotStage .slot-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    padding: clamp(7px, 1.15vw, 15px) !important;
+    transform: translate3d(0, var(--slot-pan-y, 0px), 0) scaleY(var(--slot-zoom-y, 1)) !important;
+    transform-origin: center center !important;
+    border-radius: clamp(9px, 1.3vw, 16px) !important;
+  }
+  body.landscape-phone #multiSlotStage .reference-container {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+    margin-bottom: clamp(2px, .55vh, 7px) !important;
+  }
+  body.landscape-phone #multiSlotStage .verse-container {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  body.landscape-phone #multiSlotStage .verse-text {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    line-height: 1.28 !important;
+    overflow-wrap: anywhere !important;
+  }
+  body.landscape-phone footer {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 8px !important;
+    gap: 5px !important;
+  }
+  body.landscape-phone .brand-title { font-size: .68rem !important; }
+  body.landscape-phone .mode-badge { font-size: .62rem !important; padding: 2px 6px !important; }
+  body.landscape-phone .controls-right { gap: 4px !important; }
+  body.landscape-phone .btn-kuya { padding: 5px 7px !important; font-size: .65rem !important; gap: 3px !important; }
+
+  /* Smaller, tighter labels on phones; keep the verse as the visual priority. */
+  body[data-device-profile="smartphone"] #multiSlotStage .reference-title {
+    letter-spacing: .25px !important;
+    line-height: 1.02 !important;
+  }
+  body[data-device-profile="smartphone"] #multiSlotStage .version-subtitle {
+    letter-spacing: .15px !important;
+    line-height: 1.04 !important;
+    margin-top: 1px !important;
+  }
+  body[data-device-profile="smartphone"] #multiSlotStage .slot-indicator {
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+  }
+
+  @media (max-width: 430px) and (orientation: portrait) {
+    body.portrait-orientation footer {
+      min-height: 44px !important;
+      height: 44px !important;
+      padding: 0 5px !important;
+      gap: 3px !important;
+    }
+    body.portrait-orientation .status-group { gap: 4px !important; }
+    body.portrait-orientation .brand-title {
+      max-width: 76px;
+      font-size: .58rem !important;
+      line-height: 1.05 !important;
+      white-space: normal !important;
+    }
+    body.portrait-orientation .mode-badge {
+      font-size: .58rem !important;
+      padding: 2px 4px !important;
+    }
+    body.portrait-orientation .controls-right { gap: 3px !important; }
+    body.portrait-orientation .btn-kuya {
+      padding: 5px 5px !important;
+      font-size: .58rem !important;
+      gap: 2px !important;
+      white-space: nowrap !important;
+    }
+  }
+</style>
+
+
+<style id="OUTPUT-MATCH-AND-PHONE-CROPPING-FIX-V3">
+  /* Copy the Output receiver's framing model. */
+  #multiSlotStage {
+    position: relative !important;
+    margin: 0 !important;
+    gap: 18px !important;
+    overflow: visible !important;
+  }
+  #multiSlotStage.mode-1 { grid-template-columns:minmax(0,1fr) !important; grid-template-rows:minmax(0,1fr) !important; }
+  #multiSlotStage.mode-2 { grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-template-rows:minmax(0,1fr) !important; }
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 { grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-template-rows:repeat(2,minmax(0,1fr)) !important; }
+  #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    justify-self:stretch !important;
+  }
+  #multiSlotStage > .render-box {
+    width:100% !important;
+    height:100% !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    position:relative !important;
+    overflow:visible !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+  }
+  #multiSlotStage .slot-canvas {
+    width:var(--canvas-width) !important;
+    height:var(--canvas-height) !important;
+    flex:0 0 auto !important;
+    max-width:none !important;
+    max-height:none !important;
+    box-sizing:border-box !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+    overflow:hidden !important;
+    transform:translate3d(var(--slot-pan-x,0px),var(--slot-pan-y,0px),0)
+      scale(var(--slot-scale,1)) scaleX(var(--slot-zoom-x,1)) scaleY(var(--slot-zoom-y,1)) !important;
+    transform-origin:center center !important;
+  }
+  /* Same shared-composition transform used by Output for 1 Full, 3 Split and 4 Grid. */
+  #multiSlotStage.mode-1,
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 {
+    transform:translate3d(var(--slot-pan-x,0px),var(--slot-pan-y,0px),0)
+      scaleX(var(--slot-zoom-x,1)) scaleY(var(--slot-zoom-y,1)) !important;
+    transform-origin:50% 0% !important;
+  }
+  #multiSlotStage.mode-1 .slot-canvas,
+  #multiSlotStage.mode-3 .slot-canvas,
+  #multiSlotStage.mode-4 .slot-canvas {
+    transform:scale(var(--slot-scale,1)) !important;
+  }
+  #multiSlotStage .reference-text-guard,
+  #multiSlotStage .verse-text-guard {
+    transform:none !important;
+    transform-origin:top left !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+  }
+
+  /* Output's exact soft shadow and dark-gold stroke. */
+  #multiSlotStage > .render-box:not(.transparent-verse-box) .slot-canvas {
+    border:2px solid #A78336 !important;
+    border-radius:clamp(24px,4vw,64px) !important;
+    overflow:hidden !important;
+    background-clip:padding-box !important;
+    box-shadow:
+      0 10px 30px rgba(0,0,0,.60),
+      inset 0 0 0 1px rgba(240,213,150,.20) !important;
+  }
+  #multiSlotStage > .render-box.transparent-verse-box .slot-canvas {
+    background:transparent !important;
+    box-shadow:none !important;
+    border:none !important;
+  }
+
+  /* Reserve a stable, non-overlapping title row. Long translation names may wrap. */
+  #multiSlotStage .reference-container {
+    display:flex !important;
+    flex:0 0 auto !important;
+    align-items:flex-start !important;
+    justify-content:space-between !important;
+    gap:5px !important;
+    min-width:0 !important;
+    margin-bottom:clamp(3px,.7vw,10px) !important;
+  }
+  #multiSlotStage .reference-text-guard {
+    flex:1 1 auto !important;
+    min-width:0 !important;
+    overflow:visible !important;
+  }
+  #multiSlotStage .reference-title,
+  #multiSlotStage .version-subtitle {
+    display:block !important;
+    max-width:100% !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+    word-break:normal !important;
+  }
+  #multiSlotStage .reference-title { line-height:1.04 !important; }
+  #multiSlotStage .version-subtitle { line-height:1.06 !important; margin-top:1px !important; }
+  #multiSlotStage .slot-indicator {
+    flex:0 0 34px !important;
+    width:34px !important;
+    max-width:34px !important;
+    text-align:right !important;
+    overflow-wrap:anywhere !important;
+  }
+
+  /* The verse area gets the remaining card height; never force a full-height
+     child inside an already-short box (that was the 2-Split clipping trigger). */
+  #multiSlotStage .verse-container {
+    flex:1 1 0 !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    overflow:hidden !important;
+    align-items:stretch !important;
+    justify-content:flex-start !important;
+  }
+  #multiSlotStage .verse-text-guard {
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:0 !important;
+    max-height:100% !important;
+    overflow:hidden !important;
+  }
+  #multiSlotStage .verse-text {
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    max-height:none !important;
+    overflow:visible !important;
+    line-height:1.42 !important;
+    word-break:normal !important;
+    overflow-wrap:anywhere !important;
+    text-align:center !important;
+  }
+
+  /* Phone Full / 2-Split / 4-Grid use the real display area. 2-Split stacks
+     top-to-bottom in portrait and left-to-right in landscape. */
+  body[data-device-profile="smartphone"] #mirrorViewport {
+    align-items:stretch !important;
+    justify-content:stretch !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3),
+  body.landscape-phone #multiSlotStage:not(.mode-3) {
+    width:100% !important;
+    height:100% !important;
+    aspect-ratio:auto !important;
+    overflow:hidden !important;
+    gap:clamp(6px,1.2vw,10px) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-1,
+  body.landscape-phone #multiSlotStage.mode-1 {
+    grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:minmax(0,1fr) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-2 {
+    grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-2 {
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows:minmax(0,1fr) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-4,
+  body.landscape-phone #multiSlotStage.mode-4 {
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3) > .render-box,
+  body.landscape-phone #multiSlotStage:not(.mode-3) > .render-box {
+    min-width:0 !important;
+    min-height:0 !important;
+    overflow:hidden !important;
+    align-items:stretch !important;
+    justify-content:stretch !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3) .slot-canvas,
+  body.landscape-phone #multiSlotStage:not(.mode-3) .slot-canvas {
+    width:100% !important;
+    height:100% !important;
+    max-width:100% !important;
+    max-height:100% !important;
+    padding:clamp(8px,2vw,16px) !important;
+    border-radius:clamp(12px,2.4vw,22px) !important;
+  }
+  body.landscape-phone #multiSlotStage.mode-2 .slot-canvas {
+    padding:clamp(7px,1.2vw,13px) !important;
+  }
+  body[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3) .reference-container {
+    gap:4px !important;
+    margin-bottom:clamp(2px,.55vh,6px) !important;
+  }
+  body[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3) .slot-indicator {
+    flex-basis:28px !important;
+    width:28px !important;
+    max-width:28px !important;
+    font-size:9px !important;
+    line-height:1.05 !important;
+  }
+  body.landscape-phone footer {
+    min-height:40px !important;
+    height:40px !important;
+    padding:0 7px !important;
+    gap:4px !important;
+  }
+  body.landscape-phone .brand-title { font-size:.66rem !important; }
+  body.landscape-phone .mode-badge { font-size:.60rem !important; padding:2px 5px !important; }
+  body.landscape-phone .controls-right { gap:3px !important; }
+  body.landscape-phone .btn-kuya { padding:4px 6px !important; font-size:.62rem !important; gap:2px !important; }
+
+  /* 3-Split in every orientation is deliberately excluded from the phone
+     direct-cell rules above and retains Output.html's 16:9 pyramid composition. */
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3,
+  body.landscape-phone #multiSlotStage.mode-3 {
+    aspect-ratio:16 / 9 !important;
+    overflow:visible !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3 > .render-box,
+  body.landscape-phone #multiSlotStage.mode-3 > .render-box {
+    overflow:visible !important;
+    align-items:center !important;
+    justify-content:center !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3 > .render-box:nth-child(3),
+  body.landscape-phone #multiSlotStage.mode-3 > .render-box:nth-child(3) {
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    justify-self:stretch !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3,
+  body.landscape-phone #multiSlotStage.mode-3 {
+    width:var(--canvas-width) !important;
+    height:var(--canvas-height) !important;
+  }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3 .slot-canvas,
+  body.landscape-phone #multiSlotStage.mode-3 .slot-canvas {
+    width:var(--canvas-width) !important;
+    height:var(--canvas-height) !important;
+    max-width:none !important;
+    max-height:none !important;
+    transform:scale(var(--slot-scale,1)) !important;
+  }
+  /* Specifically defeat the old 3-Split inverse counter-scale; Output keeps all
+     title and verse text proportional as part of one shared composition. */
+  #multiSlotStage.mode-3 .reference-text-guard,
+  #multiSlotStage.mode-3 .verse-text-guard {
+    transform:none !important;
+    transform-origin:top left !important;
+  }
+  #multiSlotStage.mode-3 .reference-title,
+  #multiSlotStage.mode-3 .version-subtitle { line-height:normal !important; }
+  #multiSlotStage.mode-3 .verse-text { line-height:1.55 !important; }
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage.mode-3 .verse-text,
+  body.landscape-phone #multiSlotStage.mode-3 .verse-text { line-height:1.55 !important; }
+
+  body.portrait-orientation[data-device-profile="smartphone"] #multiSlotStage:not(.mode-3) .slot-canvas,
+  body.landscape-phone #multiSlotStage:not(.mode-3) .slot-canvas {
+    transform:translate3d(var(--slot-pan-x,0px),var(--slot-pan-y,0px),0)
+      scaleX(var(--slot-zoom-x,1)) scaleY(var(--slot-zoom-y,1)) !important;
+  }
+</style>
+
+
+<style id="HIGHLIGHTER-FIXED-LANDSCAPE-FRAME-16X9-V1">
+  /* Phone/tablet orientation affects only fit scale, never the composition. */
+  html, body {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+  body {
+    display: block !important;
+    position: relative !important;
+  }
+  #mirrorViewport {
+    position: fixed !important;
+    left: 50%;
+    top: 50%;
+    width: 1920px !important;
+    height: 1080px !important;
+    min-width: 1920px !important;
+    min-height: 1080px !important;
+    max-width: none !important;
+    max-height: none !important;
+    aspect-ratio: 16 / 9 !important;
+    flex: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    transform: translate(-50%, -50%) scale(var(--hl-frame-scale, 1)) !important;
+    transform-origin: center center !important;
+  }
+  #multiSlotStage {
+    width: 1920px !important;
+    height: 1080px !important;
+    min-width: 1920px !important;
+    min-height: 1080px !important;
+    aspect-ratio: 16 / 9 !important;
+  }
+  footer {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    flex: none !important;
+    z-index: 100 !important;
+  }
+</style>
+
 </head>
 <body data-hl-mode="karaoke">
 
@@ -771,6 +1383,156 @@
         syncHighlightsToStorage();
       }
 
+      // High-DPI raster renderer. The transparent DOM text remains above the
+      // canvas for accurate per-word hit testing; only the visible glyphs are
+      // painted into the canvas, so the verse stays sharp at any device scale.
+      function paintRasterVerse(boxEl, sIdx) {
+        if (!boxEl) return;
+        const canvas = boxEl.querySelector('.verse-raster-canvas');
+        const guard = boxEl.querySelector('.verse-text-guard');
+        const textEl = boxEl.querySelector('.verse-text');
+        if (!canvas || !guard || !textEl) return;
+
+        const width = Math.max(1, guard.clientWidth);
+        const height = Math.max(1, guard.clientHeight);
+        const fittedScale = Number.parseFloat(document.getElementById('mirrorViewport')?.style.getPropertyValue('--hl-frame-scale')) || 1;
+        const dpr = Math.max(1, Math.min(2, (window.devicePixelRatio || 1) * fittedScale));
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        const pixelWidth = Math.max(1, Math.round(width * dpr));
+        const pixelHeight = Math.max(1, Math.round(height * dpr));
+        if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+        if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          textEl.classList.add('raster-fallback');
+          canvas.style.display = 'none';
+          return;
+        }
+        textEl.classList.remove('raster-fallback');
+        canvas.style.display = 'block';
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        const guardRect = guard.getBoundingClientRect();
+        const scaleX = guard.offsetWidth ? (guardRect.width / guard.offsetWidth) || 1 : 1;
+        const scaleY = guard.offsetHeight ? (guardRect.height / guard.offsetHeight) || 1 : 1;
+        const mode = document.body.dataset.hlMode || 'karaoke';
+        const words = textEl.querySelectorAll('.ndi-word');
+        let rasterWordsDrawn = 0;
+
+        words.forEach(wordEl => {
+          const word = wordEl.textContent || '';
+          if (!word) return;
+          const style = window.getComputedStyle(wordEl);
+          const fontSize = style.fontSize || '24px';
+          const fontFamily = style.fontFamily || 'Arial, Helvetica, sans-serif';
+          const fontWeight = style.fontWeight || '700';
+          const fontStyle = style.fontStyle || 'normal';
+          ctx.font = `${fontStyle} ${fontWeight} ${fontSize} ${fontFamily}`;
+
+          const active = wordEl.classList.contains('active-highlight');
+          const rects = Array.from(wordEl.getClientRects());
+          const paddingLeft = parseFloat(style.paddingLeft) || 0;
+          const paddingRight = parseFloat(style.paddingRight) || 0;
+
+          rects.forEach(rect => {
+            const x = (rect.left - guardRect.left) / scaleX;
+            const y = (rect.top - guardRect.top) / scaleY;
+            const w = rect.width / scaleX;
+            const h = rect.height / scaleY;
+            if (w <= 0 || h <= 0) return;
+
+            if (active && mode === 'box') {
+              ctx.save();
+              ctx.fillStyle = getComputedStyle(document.documentElement)
+                .getPropertyValue('--hl-box-rgba').trim() || 'rgba(250, 204, 21, 0.88)';
+              const radius = Math.min(4, h / 5);
+              ctx.beginPath();
+              if (typeof ctx.roundRect === 'function') {
+                ctx.roundRect(x, y + 1, w, Math.max(1, h - 2), radius);
+              } else {
+                ctx.rect(x, y + 1, w, Math.max(1, h - 2));
+              }
+              ctx.fill();
+              ctx.restore();
+            } else if (active) {
+              ctx.save();
+              ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+              ctx.fillRect(x, y + 1, w, Math.max(1, h - 2));
+              ctx.fillStyle = '#ffd700';
+              ctx.fillRect(x, y + h - 3, w, 3);
+              ctx.restore();
+            }
+
+            ctx.save();
+            if (active && mode === 'karaoke') {
+              ctx.fillStyle = '#ffd700';
+              ctx.shadowColor = '#ffd700';
+              ctx.shadowBlur = 8;
+            } else {
+              ctx.fillStyle = '#ffffff';
+              ctx.shadowColor = 'rgba(0,0,0,0.9)';
+              ctx.shadowBlur = 4;
+            }
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 2;
+            const drawX = x + paddingLeft;
+            const letterSpacing = Number.parseFloat(style.letterSpacing) || 0;
+            let nativeLetterSpacing = false;
+            try {
+              nativeLetterSpacing = ('letterSpacing' in ctx);
+              if (nativeLetterSpacing) ctx.letterSpacing = letterSpacing + 'px';
+            } catch (e) { nativeLetterSpacing = false; }
+
+            if (nativeLetterSpacing || letterSpacing === 0) {
+              ctx.fillText(word, drawX, y + h / 2);
+            } else {
+              // Fallback for browsers without CanvasRenderingContext2D.letterSpacing.
+              // Segment by grapheme so accented/combined characters stay intact.
+              const parts = (typeof Intl !== 'undefined' && Intl.Segmenter)
+                ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(word), part => part.segment)
+                : Array.from(word);
+              let charX = drawX;
+              parts.forEach(part => {
+                ctx.fillText(part, charX, y + h / 2);
+                charX += ctx.measureText(part).width + letterSpacing;
+              });
+            }
+            if (nativeLetterSpacing) {
+              try { ctx.letterSpacing = '0px'; } catch (e) {}
+            }
+            rasterWordsDrawn++;
+            ctx.restore();
+          });
+        });
+
+        if (rasterWordsDrawn === 0) {
+          // Never leave the verse invisible. Keep interactive DOM text visible
+          // until the canvas can measure and paint its words successfully.
+          textEl.classList.add('raster-fallback');
+          canvas.style.display = 'none';
+        } else {
+          textEl.classList.remove('raster-fallback');
+          canvas.style.display = 'block';
+        }
+      }
+
+      function scheduleRasterPaint(boxEl, sIdx) {
+        if (!boxEl) return;
+        const canvas = boxEl.querySelector('.verse-raster-canvas');
+        if (canvas && canvas._rasterFrame) cancelAnimationFrame(canvas._rasterFrame);
+        if (!canvas) return;
+        canvas._rasterFrame = requestAnimationFrame(() => {
+          canvas._rasterFrame = 0;
+          paintRasterVerse(boxEl, sIdx);
+        });
+      }
+
       function updateWordVisuals(boxEl, sIdx) {
         if (!boxEl) return;
         const words = boxEl.querySelectorAll('.ndi-word');
@@ -784,52 +1546,83 @@
           const idx = parseInt(sp.dataset.spaceAfter, 10);
           sp.classList.toggle('active-highlight', highSet.has(idx) && highSet.has(idx + 1));
         });
+        scheduleRasterPaint(boxEl, sIdx);
       }
 
-      function adjustMirrorFontSize(boxEl, baseMaxSize, displayMode, fontsObj) {
+      function getOutputTextSpacing(settings, displayMode) {
+        const allModes = (settings && settings.modeAdjustments) || {};
+        const activeMode = allModes[displayMode] || {};
+        // Output uses 1-Full composition typography for every split/grid mode.
+        const composition = displayMode === 1 ? activeMode : (allModes[1] || {});
+        const clamp = (value, fallback, min, max, decimals) => {
+          const number = Number(value);
+          return Number.isFinite(number)
+            ? Number(Math.min(max, Math.max(min, number)).toFixed(decimals))
+            : fallback;
+        };
+        return {
+          letterSpacing: clamp(composition.letterSpacing, -1.0, -2, 10, 1),
+          lineSpacing: clamp(composition.lineSpacing, 1.20, 0.8, 2.5, 2)
+        };
+      }
+
+      function adjustMirrorFontSize(boxEl, baseMaxSize, displayMode, fontsObj, textSpacing) {
         const container = boxEl.querySelector('.verse-container');
         const text = boxEl.querySelector('.verse-text');
         const refTitle = boxEl.querySelector('.reference-title');
         const verSub = boxEl.querySelector('.version-subtitle');
+        const reference = boxEl.querySelector('.reference-container');
         if (!container || !text) return;
 
-        // Identical 1-Full typography baseline to Output. Split zoom is applied
-        // once to the entire 16:9 .slot-canvas, not again to individual fonts.
-        const baseRefSize = (fontsObj && parseInt(fontsObj.refSize, 10)) || 60;
-        const baseVerSize = (fontsObj && parseInt(fontsObj.verSize, 10)) || 45;
+        // HIGHLIGHTER-ONLY HEADER DEFAULTS.
+        // Keep these sizes independent of Output typography and device orientation.
+        // Genesis reference = 30px; translation label = 15px on every Highlighter layout.
+        const refSize = 30;
+        const verSize = 15;
+        if (refTitle) {
+          refTitle.style.setProperty('font-size', refSize + 'px', 'important');
+          refTitle.style.setProperty('line-height', '1.04', 'important');
+        }
+        if (verSub) {
+          verSub.style.setProperty('font-size', verSize + 'px', 'important');
+          verSub.style.setProperty('line-height', '1.06', 'important');
+        }
 
-        // Match Output: 3-Split text fits the compressed box without distorted glyphs.
-        // 2-Split and 4-Grid retain their existing font sizing and Zoom Y behavior.
-        const stageEl = boxEl.closest('#multiSlotStage');
-        const rawZoomY = stageEl ? Number(stageEl.style.getPropertyValue('--slot-zoom-y')) : 1;
-        const zoomY = (displayMode === 3 && Number.isFinite(rawZoomY) && rawZoomY > 0)
-          ? Math.min(1.5, Math.max(0.5, rawZoomY)) : 1;
-        const fontFitScale = displayMode === 3 ? Math.min(zoomY, 1) : 1;
-        if (refTitle) refTitle.style.fontSize = (baseRefSize * fontFitScale) + 'px';
-        if (verSub) verSub.style.fontSize = (baseVerSize * fontFitScale) + 'px';
-        const usableHeight = container.clientHeight * fontFitScale;
-
-        text.style.lineHeight = '1.55';
+        // Match Output's active composition spacing. Defaults are -1.0px / 1.20
+        // when no Operator spacing has been saved; this also keeps DOM hit boxes
+        // aligned with the raster glyphs and Output's line wrapping.
+        const spacing = textSpacing || { letterSpacing: -1.0, lineSpacing: 1.20 };
+        const effectiveLetterSpacing = Number.isFinite(Number(spacing.letterSpacing)) ? Number(spacing.letterSpacing) : -1.0;
+        const effectiveLineSpacing = Number.isFinite(Number(spacing.lineSpacing)) ? Number(spacing.lineSpacing) : 1.20;
+        text.style.setProperty('letter-spacing', effectiveLetterSpacing.toFixed(1) + 'px', 'important');
+        text.style.setProperty('line-height', String(effectiveLineSpacing), 'important');
+        // Clear stale fit state before measuring. Include every geometry-affecting
+        // property so an orientation or layout change always triggers a new fit.
         text.style.width = '100%';
-        text.style.maxHeight = '100%';
-        text.style.overflow = 'hidden';
+        text.style.maxHeight = 'none';
+        text.style.overflow = 'visible';
 
-        const fitKey = [
-          text.dataset.verseKey || '', Number(baseMaxSize) || 72,
-          baseRefSize, baseVerSize, fontFitScale, container.clientWidth, container.clientHeight
+        const usableWidth = Math.max(1, container.clientWidth);
+        const usableHeight = Math.max(1, container.clientHeight);
+        const key = [
+          text.dataset.verseKey || '', displayMode, Number(baseMaxSize) || 100,
+          refSize.toFixed(2), verSize.toFixed(2), effectiveLetterSpacing.toFixed(1),
+          effectiveLineSpacing.toFixed(2), usableWidth, usableHeight,
+          window.innerWidth, window.innerHeight, document.body.dataset.deviceProfile || ''
         ].join('|');
-        // Highlight changes do not invalidate this key, so another slot's
-        // highlight cannot cause this slot's typography to jump.
-        if (text.dataset.fontFitKey === fitKey && text.dataset.fittedFontSize) return;
+        if (text.dataset.fontFitKey === key && text.dataset.fittedFontSize) return;
+        text.style.fontSize = '';
 
-        let low = 14;
-        let high = Math.max(14, Number(baseMaxSize) || 72);
-        let best = 14;
+        const maxSize = Math.max(12, Math.min(100, Number(baseMaxSize) || 100));
+        let low = 10;
+        let high = Math.floor(maxSize);
+        let best = low;
         while (low <= high) {
           const mid = Math.floor((low + high) / 2);
           text.style.fontSize = mid + 'px';
-          if (text.scrollHeight <= usableHeight + 1 &&
-              text.scrollWidth <= container.clientWidth + 1) {
+          const fitsHeight = text.scrollHeight <= usableHeight + 1;
+          const fitsWidth = text.scrollWidth <= usableWidth + 1;
+          if (fitsHeight && fitsWidth) {
             best = mid;
             low = mid + 1;
           } else {
@@ -837,29 +1630,65 @@
           }
         }
         text.style.fontSize = best + 'px';
+        text.style.maxHeight = 'none';
+        text.style.overflow = 'visible';
         text.dataset.fittedFontSize = String(best);
-        text.dataset.fontFitKey = fitKey;
+        text.dataset.fontFitKey = key;
+
+        // Keep the header from being pushed outside a short 2-Split phone card.
+        if (reference) {
+          reference.style.flex = '0 0 auto';
+          reference.style.minHeight = '0';
+        }
       }
 
       function fitMirrorStageTo16x9(displayMode, outerMargin) {
-        const margin = Math.max(0, Number(outerMargin) || 0);
-        const availableWidth = Math.max(160, window.innerWidth - margin * 2);
-        const availableHeight = Math.max(90, window.innerHeight - margin * 2);
-        const width = Math.min(availableWidth, availableHeight * 16 / 9);
-        const height = width * 9 / 16;
-        stage.style.width = width + 'px';
-        stage.style.height = height + 'px';
-        stage.style.setProperty('--canvas-width', width + 'px');
-        stage.style.setProperty('--canvas-height', height + 'px');
+        const viewport = document.getElementById('mirrorViewport');
+        const footer = document.querySelector('footer');
+        const MASTER_WIDTH = 1920;
+        const MASTER_HEIGHT = 1080;
 
+        // Orientation never changes the composition. Only the scale of this
+        // landscape master frame changes to fit the available screen area.
+        document.body.classList.remove('portrait-orientation', 'landscape-phone');
+
+        const viewWidth = Math.max(1, window.innerWidth || document.documentElement.clientWidth || MASTER_WIDTH);
+        const viewHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || MASTER_HEIGHT);
+        const footerHeight = footer ? Math.ceil(footer.getBoundingClientRect().height || 54) : 54;
+        const contentHeight = Math.max(1, viewHeight - footerHeight);
+        const frameScale = Math.max(0.01, Math.min(viewWidth / MASTER_WIDTH, contentHeight / MASTER_HEIGHT));
+
+        // The stage is authored once at 1920x1080. CSS transform scales the
+        // complete frame, including all slots, raster text and word hit areas.
+        viewport.style.position = 'fixed';
+        viewport.style.left = (viewWidth / 2) + 'px';
+        viewport.style.top = (contentHeight / 2) + 'px';
+        viewport.style.width = MASTER_WIDTH + 'px';
+        viewport.style.height = MASTER_HEIGHT + 'px';
+        viewport.style.flex = 'none';
+        viewport.style.margin = '0';
+        viewport.style.padding = '0';
+        viewport.style.setProperty('--hl-frame-scale', String(frameScale));
+
+        stage.style.width = MASTER_WIDTH + 'px';
+        stage.style.height = MASTER_HEIGHT + 'px';
+        stage.style.aspectRatio = '16 / 9';
+        stage.style.setProperty('--canvas-width', MASTER_WIDTH + 'px');
+        stage.style.setProperty('--canvas-height', MASTER_HEIGHT + 'px');
+
+        // Keep split-card proportions identical to Output's 16:9 master layout.
         const gap = parseFloat(getComputedStyle(stage).gap) || 18;
-        let scale = 1;
+        let slotScale = 1;
         if (displayMode === 2) {
-          scale = Math.min((width - gap) / (2 * width), 1);
+          slotScale = Math.min((MASTER_WIDTH - gap) / (2 * MASTER_WIDTH), 1);
         } else if (displayMode === 3 || displayMode === 4) {
-          scale = Math.min((width - gap) / (2 * width), (height - gap) / (2 * height), 1);
+          slotScale = Math.min(
+            (MASTER_WIDTH - gap) / (2 * MASTER_WIDTH),
+            (MASTER_HEIGHT - gap) / (2 * MASTER_HEIGHT),
+            1
+          );
         }
-        stage.style.setProperty('--slot-scale', String(Math.max(0.05, scale)));
+        stage.style.setProperty('--slot-scale', String(Math.max(0.05, slotScale)));
       }
 
       function applyTypography(boxEl, fonts) {
@@ -917,6 +1746,7 @@
         const baseMaxFont = parseInt(s.maxFontSize, 10) || 72;
         const topGapPx = (s.topGap !== undefined) ? parseInt(s.topGap, 10) : 1;
         const displayMode = parseInt(data.displayMode, 10) || 1;
+        const textSpacing = getOutputTextSpacing(s, displayMode);
         const modeChanged = (displayMode !== lastDisplayMode);
         lastDisplayMode = displayMode;
 
@@ -929,35 +1759,50 @@
         fitMirrorStageTo16x9(displayMode, outerMargin);
         const modeAdjustments = s.modeAdjustments || {};
         const modeAdjustment = modeAdjustments[displayMode] || {};
+        const requestedZoomX = Number(modeAdjustment.zoomX);
+        const requestedPanX = Number(modeAdjustment.panX);
         const requestedZoomY = Number(modeAdjustment.zoomY);
         const requestedPanY = Number(modeAdjustment.panY);
-        const zoomY = Math.min(1.5, Math.max(0.5, (Number.isFinite(requestedZoomY) ? requestedZoomY : 100) / 100));
+        // HIGHLIGHTER-ONLY OVERRIDE: keep this viewer at 100% X zoom.
+        // Operator zoom values remain untouched and continue to control Output.
+        const zoomX = 1;
+        const panX = Math.min(400, Math.max(-400, Number.isFinite(requestedPanX) ? requestedPanX : 0));
+        // HIGHLIGHTER-ONLY OVERRIDE: keep this viewer at 100% Y zoom.
+        // This does not modify the Operator settings or output/output.html.
+        const zoomY = 1;
         const panY = Math.min(400, Math.max(-400, Number.isFinite(requestedPanY) ? requestedPanY : 0));
+        stage.style.setProperty('--slot-zoom-x', String(zoomX));
+        stage.style.setProperty('--slot-zoom-x-inverse', String(1 / zoomX));
+        stage.style.setProperty('--slot-zoom-x-width', (zoomX * 100) + '%');
+        stage.style.setProperty('--slot-pan-x', panX + 'px');
         stage.style.setProperty('--slot-zoom-y', String(zoomY));
         stage.style.setProperty('--slot-zoom-y-inverse', String(1 / zoomY));
         stage.style.setProperty('--slot-pan-y', panY + 'px');
 
         // I-check muna ang LAHAT ng 4 slots para sa pagbabago ng salita kahit nakatago pa ang iba
         data.slots.slice(0, 4).forEach((slotData, idx) => {
-          const wordsArr = slotData.words || [];
-          const wordsSig = wordsArr.join(' ').trim().toLowerCase();
-          const opHighArr = Array.isArray(slotData.highlighted) ? slotData.highlighted : [];
+          const wordsArr = Array.isArray(slotData.words) ? slotData.words : [];
+          // Use the complete verse identity. Two different verses can contain
+          // identical words; their highlight indexes must never leak into each other.
+          const verseSig = [
+            slotData.transId || '', slotData.bookIndex ?? '', slotData.chapter || '',
+            slotData.verse || '', slotData.reference || '', slotData.version || '',
+            wordsArr.join(' ')
+          ].join('|').toLowerCase();
+          const opHighArr = (Array.isArray(slotData.highlighted) ? slotData.highlighted : [])
+            .map(Number).filter(wIdx => Number.isInteger(wIdx) && wIdx >= 0 && wIdx < wordsArr.length);
           const opHighSig = opHighArr.slice().sort((a,b) => a - b).join(',');
 
-          if (wordsSig && slotVerseSignatures[idx] !== wordsSig) {
-            // Tunay na nagpalit ng verse sa slot na ito -> i-reset at gamitin ang highlights ng bagong verse
-            slotVerseSignatures[idx] = wordsSig;
+          if (slotVerseSignatures[idx] !== verseSig) {
+            // A new verse (or an emptied slot) starts with the Operator's exact highlight state.
+            slotVerseSignatures[idx] = verseSig;
             persistentHighlights[idx] = new Set(opHighArr);
             lastOperatorHighSig[idx] = opHighSig;
-          } else {
-            // HINDI nagbago ang verse! Huwag burahin ang highlights kapag nag-switch lang ng mode.
-            // Kung nagdagdag ng highlight ang Operator mismo sa PC niya, isama natin:
-            if (opHighSig !== lastOperatorHighSig[idx]) {
-              lastOperatorHighSig[idx] = opHighSig;
-              if (opHighArr.length > 0) {
-                opHighArr.forEach(wIdx => persistentHighlights[idx].add(wIdx));
-              }
-            }
+          } else if (opHighSig !== lastOperatorHighSig[idx]) {
+            // Reconcile both additions AND removals from the Operator. Union-only
+            // updates left stale words highlighted after a word was unselected.
+            lastOperatorHighSig[idx] = opHighSig;
+            persistentHighlights[idx] = new Set(opHighArr);
           }
         });
 
@@ -978,7 +1823,8 @@
               </div>
               <div class="verse-container">
                 <div class="verse-text-guard">
-                  <div class="verse-text"></div>
+                  <canvas class="verse-raster-canvas" aria-hidden="true"></canvas>
+                  <div class="verse-text raster-hit-layer"></div>
                 </div>
               </div>
             </div>
@@ -990,7 +1836,16 @@
           const boxEl = stage.children[sIdx];
           const canvasEl = boxEl.querySelector('.slot-canvas');
           if (canvasEl) {
-            canvasEl.style.padding = `${pad}px ${pad + 8}px`;
+            canvasEl.style.removeProperty('padding');
+            if (displayMode === 1) {
+              // 1 Full keeps its existing composition-based padding.
+              canvasEl.style.padding = `${pad}px ${pad + 8}px`;
+            } else {
+              // HIGHLIGHTER-ONLY SPLIT DEFAULT: fixed 50px inner padding for
+              // 2 Split, 3 Split and 4 Grid, independent of Output settings.
+              // Inline !important also overrides the old responsive phone clamps.
+              canvasEl.style.setProperty('padding', '50px', 'important');
+            }
             canvasEl.style.borderRadius = outerMargin === 0 && displayMode === 1 ? '0px' : '14px';
           }
           boxEl.classList.toggle('transparent-verse-box', hideBoxBg);
@@ -1044,7 +1899,10 @@
           if (lastOutputData !== data) return;
           visibleSlots.forEach((slotData, idx) => {
             const boxEl = stage.children[idx];
-            if (boxEl) adjustMirrorFontSize(boxEl, baseMaxFont, displayMode, data.fonts);
+            if (boxEl) {
+              adjustMirrorFontSize(boxEl, baseMaxFont, displayMode, data.fonts, textSpacing);
+              scheduleRasterPaint(boxEl, idx);
+            }
           });
         }));
 
@@ -1122,6 +1980,7 @@
       document.getElementById('btnClearHighlights').addEventListener('click', () => {
         for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
         stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+        Array.from(stage.children).forEach((boxEl, idx) => scheduleRasterPaint(boxEl, idx));
 
         const payload = {
           type: 'CLEAR_ALL_HIGHLIGHTS',
@@ -1173,6 +2032,7 @@
             if (msg.type === 'CLEAR_ALL_HIGHLIGHTS' || msg.type === 'CLEAR_HIGHLIGHTS') {
               for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
               stage.querySelectorAll('.active-highlight').forEach(el => el.classList.remove('active-highlight'));
+              Array.from(stage.children).forEach((boxEl, idx) => scheduleRasterPaint(boxEl, idx));
               return;
             }
             if (typeof msg.hideVerseBox !== 'undefined' && !msg.slots) {
@@ -1237,6 +2097,11 @@
       window.addEventListener('resize', () => {
         if (lastOutputData) renderMirrorState(lastOutputData);
       });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          if (lastOutputData) renderMirrorState(lastOutputData);
+        });
+      }
       window.addEventListener('orientationchange', () => {
         setTimeout(() => { if (lastOutputData) renderMirrorState(lastOutputData); }, 180);
       });
