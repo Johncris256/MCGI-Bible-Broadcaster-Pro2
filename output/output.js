@@ -229,6 +229,154 @@ function applyBoxTypography(boxEl, fonts) {
   });
 }
 
+const OUTPUT_BLUE_WAVE_STYLE_ID = 'OUTPUT_BLUE_WAVE_ANIMATED_BG_STYLE';
+const OUTPUT_BLUE_WAVE_LAYER_ID = 'outputAnimatedBackgroundLayer';
+let lastOutputBackgroundMode = '';
+
+function ensureOutputBlueWaveStyles() {
+  if (document.getElementById(OUTPUT_BLUE_WAVE_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = OUTPUT_BLUE_WAVE_STYLE_ID;
+  style.textContent = `
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} {
+      position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100vh;
+      overflow: hidden; pointer-events: none;
+      background: linear-gradient(45deg,#06368f 0%,#0757b8 35%,#167fdb 70%,#38a9ff 100%);
+    }
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} svg { display:block; width:100%; height:100%; }
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-main { transform-origin:center; animation: outputBlueWaveMain 12s ease-in-out infinite alternate; }
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-upper { transform-origin:center; animation: outputBlueWaveUpper 15s ease-in-out infinite alternate; }
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-lower { transform-origin:center; animation: outputBlueWaveLower 13s ease-in-out infinite alternate; }
+    #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-glow { animation: outputBlueWaveGlow 7s ease-in-out infinite alternate; }
+    @keyframes outputBlueWaveMain {
+      0% { transform:translate(-2.5%,1.5%) scale(1.02); }
+      100% { transform:translate(2.5%,-1.5%) scale(1.05); }
+    }
+    @keyframes outputBlueWaveUpper {
+      0% { transform:translate(2%,-1.5%) scale(1.02); }
+      100% { transform:translate(-2%,1.5%) scale(1.04); }
+    }
+    @keyframes outputBlueWaveLower {
+      0% { transform:translate(-2%,1.5%) scale(1.02); }
+      100% { transform:translate(2%,-1.5%) scale(1.04); }
+    }
+    @keyframes outputBlueWaveGlow {
+      0% { opacity:.35; }
+      100% { opacity:.85; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-main,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-upper,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-lower,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-glow,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} animate,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} animateTransform { display:none !important; animation:none !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function createOutputBlueWaveMarkup() {
+  return `
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="outWaveMainGradient" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#06368f"/><stop offset="35%" stop-color="#0752c4"/><stop offset="70%" stop-color="#087de8"/><stop offset="100%" stop-color="#38a9ff"/>
+        </linearGradient>
+        <linearGradient id="outWaveGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#168fff"/><stop offset="45%" stop-color="#0752c4"/><stop offset="100%" stop-color="#052b78"/>
+        </linearGradient>
+        <linearGradient id="outLightWave" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#83d4ff" stop-opacity=".5"/><stop offset="50%" stop-color="#24a0ff" stop-opacity=".22"/><stop offset="100%" stop-color="#087de8" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="outWaveSoftBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="35"/></filter>
+        <filter id="outWaveGlowBlur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="55"/></filter>
+      </defs>
+      <rect width="1600" height="900" fill="url(#outWaveMainGradient)"/>
+      <g class="wave-glow" filter="url(#outWaveGlowBlur)">
+        <ellipse cx="1180" cy="180" rx="520" ry="280" fill="#7bd0ff" opacity=".35"/>
+        <ellipse cx="300" cy="760" rx="500" ry="280" fill="#001e68" opacity=".5"/>
+      </g>
+      <g class="wave-upper" filter="url(#outWaveSoftBlur)">
+        <path d="M-100 180 C180 20 390 90 620 170 C900 270 1120 100 1370 80 C1530 65 1660 130 1750 190 L1750 -100 L-100 -100 Z" fill="url(#outLightWave)"/>
+      </g>
+      <g class="wave-main">
+        <path d="M-100 500 C180 360 350 390 570 490 C820 610 990 520 1190 390 C1390 260 1540 330 1700 430 L1700 1050 L-100 1050 Z" fill="url(#outWaveGradient)" opacity=".9"/>
+        <path d="M-100 590 C170 470 370 500 590 590 C830 690 1030 610 1230 500 C1430 390 1580 460 1700 530" fill="none" stroke="#45b5ff" stroke-width="85" opacity=".12" filter="url(#outWaveSoftBlur)"/>
+      </g>
+      <g class="wave-lower">
+        <path d="M-100 740 C180 600 400 640 620 730 C860 830 1070 760 1280 660 C1470 570 1600 640 1700 700 L1700 1050 L-100 1050 Z" fill="#032b78" opacity=".52"/>
+        <path d="M-100 790 C220 660 400 700 640 790 C880 880 1110 810 1320 710 C1490 630 1600 680 1700 740" fill="none" stroke="#168fff" stroke-width="55" opacity=".16" filter="url(#outWaveSoftBlur)"/>
+      </g>
+      <path d="M-100 300 C250 180 430 250 680 330 C950 420 1190 290 1450 220 C1550 195 1640 220 1700 250" fill="none" stroke="#a4e2ff" stroke-width="3" opacity=".12" filter="url(#outWaveSoftBlur)"/>
+    </svg>
+  `;
+}
+
+function createOutputAnimatedBackgroundMarkup(selectionId) {
+  if (selectionId === 'blue-wave') return createOutputBlueWaveMarkup();
+  const library = window.OUTPUT_ANIMATED_BACKGROUND_LIBRARY || {};
+  return typeof library[selectionId] === 'string' ? library[selectionId] : createOutputBlueWaveMarkup();
+}
+
+function applyOutputBackground(backgroundValue) {
+  const body = document.body;
+  const html = document.documentElement;
+  const stage = document.getElementById('multiSlotStage');
+  const isAnimated = typeof backgroundValue === 'string' && backgroundValue.startsWith('animated:');
+  let layer = document.getElementById(OUTPUT_BLUE_WAVE_LAYER_ID);
+
+  if (isAnimated) {
+    const selectionId = backgroundValue.slice('animated:'.length) || 'blue-wave';
+    // Keep the SVG DOM alive across verse/highlight updates. Only replace it
+    // when the operator actually selects a different animated background.
+    if (layer && layer.dataset.backgroundSelection === selectionId) {
+      lastOutputBackgroundMode = backgroundValue;
+      return;
+    }
+
+    ensureOutputBlueWaveStyles();
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = OUTPUT_BLUE_WAVE_LAYER_ID;
+      document.body.insertBefore(layer, document.body.firstChild);
+    }
+    layer.dataset.backgroundSelection = selectionId;
+    layer.innerHTML = createOutputAnimatedBackgroundMarkup(selectionId);
+
+    body.style.backgroundColor = 'transparent';
+    body.style.backgroundImage = 'none';
+    html.style.backgroundColor = 'transparent';
+    if (stage) {
+      stage.style.position = 'relative';
+      stage.style.zIndex = '1';
+    }
+    lastOutputBackgroundMode = backgroundValue;
+    return;
+  }
+
+  if (layer) layer.remove();
+  if (stage) {
+    stage.style.zIndex = '';
+    stage.style.position = '';
+  }
+  html.style.backgroundColor = '';
+  if (backgroundValue === 'transparent') {
+    body.style.backgroundColor = 'transparent';
+    body.style.backgroundImage = 'none';
+  } else if (typeof backgroundValue === 'string' && backgroundValue.startsWith('url')) {
+    body.style.backgroundImage = backgroundValue;
+    body.style.backgroundSize = 'cover';
+    body.style.backgroundPosition = 'center';
+    body.style.backgroundRepeat = 'no-repeat';
+    body.style.backgroundColor = '';
+  } else {
+    body.style.backgroundColor = backgroundValue || '#004cff';
+    body.style.backgroundImage = 'none';
+  }
+  lastOutputBackgroundMode = backgroundValue || 'default';
+}
+
 function renderOutputState(data) {
   if (!data) return;
   lastReceivedData = data;
@@ -237,18 +385,7 @@ function renderOutputState(data) {
     ? data.bg
     : "url('/images/Bible%20BG.jpg')";
 
-  if (backgroundValue === 'transparent') {
-    document.body.style.backgroundColor = 'transparent';
-    document.body.style.backgroundImage = 'none';
-  } else if (backgroundValue.startsWith('url')) {
-    document.body.style.backgroundImage = backgroundValue;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundRepeat = 'no-repeat';
-  } else {
-    document.body.style.backgroundColor = backgroundValue;
-    document.body.style.backgroundImage = 'none';
-  }
+  applyOutputBackground(backgroundValue);
 
   applyAnimationVariables(data.animation);
   const s = data.settings || {};
