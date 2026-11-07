@@ -21,9 +21,13 @@
 
     function getVisibleBoxes() {
       const stage = document.getElementById('multiSlotStage') || document.body;
-      return Array.from(stage.querySelectorAll('.render-box, [id*="slot"], [class*="slot"]')).filter(b => {
-        const s = window.getComputedStyle(b);
-        return s.display !== 'none' && s.opacity !== '0';
+      // Slot index is the order of direct .render-box children. Do not query
+      // nested .slot-canvas / .slot-indicator elements: they shift every slot
+      // index after Slot 1 and route highlights into the wrong verse box.
+      return Array.from(stage.children).filter(box => {
+        if (!box.classList || !box.classList.contains('render-box')) return false;
+        const style = window.getComputedStyle(box);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
       });
     }
 
@@ -34,14 +38,18 @@
 
         const textEl = box.querySelector('.verse-text, [class*="verse"], p');
         const words = textEl ? Array.from(textEl.querySelectorAll('.ndi-word, span')).filter(w => w.innerText.trim()) : [];
-        
-        // PURE VERSE WORDS FINGERPRINT (Walang kinalaman ang focus o title)
-        const wordsSig = words.slice(0, 15).map(w => w.innerText.trim().toLowerCase()).join(' ');
+        const reference = box.querySelector('.reference-title')?.textContent?.trim() || '';
+        const version = box.querySelector('.version-subtitle')?.textContent?.trim() || '';
 
-        if (wordsSig) {
-          // Kung talagang NAGBAGO ang mga salita ng talata:
-          if (slotVerseSignatures[sIdx] !== wordsSig) {
-            slotVerseSignatures[sIdx] = wordsSig;
+        // Full verse identity avoids keeping old highlights when a new verse has
+        // a repeated opening phrase or the local Output translation changes.
+        const wordsSig = words.map(w => w.innerText.trim().toLowerCase()).join(' ');
+        const verseSig = [reference, version, wordsSig].join('|');
+
+        {
+          // Kung talagang NAGBAGO ang reference, translation, o verse words:
+          if (slotVerseSignatures[sIdx] !== verseSig) {
+            slotVerseSignatures[sIdx] = verseSig;
             persistentHighlights[sIdx].clear();
           } else {
             // Kung PAREHO ang mga salita: Panatilihin ang highlights kahit nagbago ang focus!
@@ -56,6 +64,37 @@
         }
       });
     }
+
+    // Drop stale event-cache entries before any authoritative Operator render.
+    // The cache is rebuilt from the final rendered classes immediately afterward.
+    window.clearOutputPersistentHighlightCache = function() {
+      for (let i = 0; i < 4; i++) persistentHighlights[i].clear();
+    };
+
+    // Reconcile the private persistence cache from the just-rendered Output DOM.
+    // This is important when Operator removes a highlight that was first painted
+    // from the Highlighter SSE path: stale cached indexes must not reappear.
+    window.syncOutputPersistentHighlightsFromDOM = function() {
+      const boxes = getVisibleBoxes();
+      boxes.forEach((box, sIdx) => {
+        if (sIdx > 3) return;
+        const textEl = box.querySelector('.verse-text');
+        const words = textEl
+          ? Array.from(textEl.querySelectorAll('.ndi-word')).filter(w => w.textContent.trim())
+          : [];
+        const current = persistentHighlights[sIdx];
+        current.clear();
+        words.forEach((word, fallbackIndex) => {
+          const rawIndex = Number(word.dataset.idx);
+          const wordIndex = Number.isInteger(rawIndex) ? rawIndex : fallbackIndex;
+          if (word.classList.contains('active-highlight')) current.add(wordIndex);
+        });
+        const reference = box.querySelector('.reference-title')?.textContent?.trim() || '';
+        const version = box.querySelector('.version-subtitle')?.textContent?.trim() || '';
+        const wordsSig = words.map(w => w.textContent.trim().toLowerCase()).join(' ');
+        slotVerseSignatures[sIdx] = [reference, version, wordsSig].join('|');
+      });
+    };
 
     const OrigBC = window.BroadcastChannel;
     window.BroadcastChannel = function(name) {
@@ -867,6 +906,32 @@
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
 <script src="output-layout-transition.js?v=20261107-slide-cleanup-v1"></script>
+<script id="OUTPUT_OPERATOR_HIGHLIGHT_AUTHORITY_V1">
+  (function() {
+    const originalRender = window.renderOutputState;
+    if (typeof originalRender !== 'function' || originalRender.__operatorHighlightAuthorityV1) return;
+    const wrappedRender = function(data) {
+      // Prevent the MutationObserver from restoring an old Highlighter SSE set
+      // while the authoritative Operator render is replacing word classes.
+      if (typeof window.clearOutputPersistentHighlightCache === 'function') {
+        window.clearOutputPersistentHighlightCache();
+      }
+      const result = originalRender.apply(this, arguments);
+      const reconcile = () => {
+        try {
+          if (typeof window.syncOutputPersistentHighlightsFromDOM === 'function') {
+            window.syncOutputPersistentHighlightsFromDOM();
+          }
+        } catch (error) {}
+      };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(reconcile);
+      else setTimeout(reconcile, 0);
+      return result;
+    };
+    wrappedRender.__operatorHighlightAuthorityV1 = true;
+    window.renderOutputState = wrappedRender;
+  })();
+</script>
 </body>
 </html>
 
