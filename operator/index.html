@@ -420,6 +420,65 @@
       .mode-adjust-row label, .mode-adjust-value { font-size:11px; }
     }
 
+
+    /* ANIMATED BACKGROUND PICKER */
+    .animated-bg-active {
+      background: #0757b8 !important;
+      border-color: #38a9ff !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 0 1px rgba(56,169,255,.28), 0 0 12px rgba(22,127,219,.25);
+    }
+    .animated-bg-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; align-items:stretch; }
+    .animated-bg-choice {
+      display: block;
+      width: 100%;
+      min-width:0;
+      padding: 10px;
+      border: 2px solid #334155;
+      border-radius: 9px;
+      background: #111c2e;
+      color: #f8fafc;
+      text-align: left;
+      cursor: pointer;
+    }
+    .animated-bg-choice:hover { border-color: #64748b; background: #17243a; }
+    .animated-bg-choice.selected {
+      border-color: #38a9ff;
+      box-shadow: 0 0 0 2px rgba(56,169,255,.16);
+      background: rgba(7,87,184,.14);
+    }
+    .animated-bg-preview {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: 7px;
+      background: linear-gradient(45deg,#06368f 0%,#0757b8 35%,#167fdb 70%,#38a9ff 100%);
+      isolation: isolate;
+    }
+    .animated-bg-preview svg { display:block; width:100%; height:100%; }
+    .animated-bg-preview .wave-main { transform-origin:center; animation: opWaveMain 12s ease-in-out infinite alternate; }
+    .animated-bg-preview .wave-upper { transform-origin:center; animation: opWaveUpper 15s ease-in-out infinite alternate; }
+    .animated-bg-preview .wave-lower { transform-origin:center; animation: opWaveLower 13s ease-in-out infinite alternate; }
+    .animated-bg-preview .wave-glow { animation: opWaveGlow 7s ease-in-out infinite alternate; }
+    @keyframes opWaveMain { 0% { transform:translate(-2.5%,1.5%) scale(1.02); } 100% { transform:translate(2.5%,-1.5%) scale(1.05); } }
+    @keyframes opWaveUpper { 0% { transform:translate(2%,-1.5%) scale(1.02); } 100% { transform:translate(-2%,1.5%) scale(1.04); } }
+    @keyframes opWaveLower { 0% { transform:translate(-2%,1.5%) scale(1.02); } 100% { transform:translate(2%,-1.5%) scale(1.04); } }
+    @keyframes opWaveGlow { 0% { opacity:.35; } 100% { opacity:.85; } }
+    .animated-bg-choice-title {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin: 8px 0 3px; font-size:14px; font-weight:800;
+    }
+    .animated-bg-choice-note { color:#94a3b8; font-size:11.5px; line-height:1.45; }
+    @media (max-width:720px) { .animated-bg-options { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:460px) { .animated-bg-options { grid-template-columns:1fr; } }
+    @media (prefers-reduced-motion: reduce) {
+      .animated-bg-preview .wave-main,
+      .animated-bg-preview .wave-upper,
+      .animated-bg-preview .wave-lower,
+      .animated-bg-preview .wave-glow { animation:none !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -434,7 +493,7 @@
       <input type="file" id="bgImageInput" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,image/jpeg,image/png,image/gif,image/webp,image/bmp" style="display: none;">
       <button id="uploadImgBtn" class="std-btn" type="button">Upload BG</button>
       <button id="restoreDefaultBgBtn" class="std-btn" type="button" title="Restore images/Bible BG.jpg">Default BG</button>
-
+      <button id="animatedBgBtn" class="std-btn" type="button" aria-haspopup="dialog" aria-controls="animatedBgModal">Animated BG</button>
       <label class="ctrl-label"><input type="checkbox" id="transparentToggle"> Transparent BG</label>
       <label class="ctrl-label"><input type="checkbox" id="hideVerseBoxToggle"> Hide Verse Box</label>
 
@@ -891,6 +950,111 @@
     </div>
   </div>
 
+
+  <!-- ANIMATED BACKGROUND SELECTION -->
+  <div id="animatedBgModal" class="lan-modal-backdrop" role="presentation">
+    <div class="lan-modal-box" style="width:min(920px,94vw); min-width:0; max-height:92vh; overflow-y:auto;" role="dialog" aria-modal="true" aria-labelledby="animatedBgModalTitle">
+      <div class="lan-modal-header">
+        <span id="animatedBgModalTitle">🌊 Animated Background Selection</span>
+        <button type="button" class="lan-close-x" id="animatedBgCloseX" aria-label="Close">×</button>
+      </div>
+      <div style="color:#94a3b8; font-size:12px; margin:-5px 0 12px;">
+        Pumili ng animated SVG background para sa Output Screen.
+      </div>
+      <div class="animated-bg-options">
+      <button type="button" id="animatedBgBlueWaveChoice" class="animated-bg-choice selected" data-animated-bg="blue-wave" aria-pressed="true">
+        <div class="animated-bg-preview" aria-hidden="true">
+          <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="opMainGradient" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#06368f"/><stop offset="35%" stop-color="#0752c4"/><stop offset="70%" stop-color="#087de8"/><stop offset="100%" stop-color="#38a9ff"/>
+              </linearGradient>
+              <linearGradient id="opWaveGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#168fff"/><stop offset="45%" stop-color="#0752c4"/><stop offset="100%" stop-color="#052b78"/>
+              </linearGradient>
+              <linearGradient id="opLightWave" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#83d4ff" stop-opacity=".5"/><stop offset="50%" stop-color="#24a0ff" stop-opacity=".22"/><stop offset="100%" stop-color="#087de8" stop-opacity="0"/>
+              </linearGradient>
+              <filter id="opSoftBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="35"/></filter>
+              <filter id="opGlowBlur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="55"/></filter>
+            </defs>
+            <rect width="1600" height="900" fill="url(#opMainGradient)"/>
+            <g class="wave-glow" filter="url(#opGlowBlur)">
+              <ellipse cx="1180" cy="180" rx="520" ry="280" fill="#7bd0ff" opacity=".35"/>
+              <ellipse cx="300" cy="760" rx="500" ry="280" fill="#001e68" opacity=".5"/>
+            </g>
+            <g class="wave-upper" filter="url(#opSoftBlur)">
+              <path d="M-100 180 C180 20 390 90 620 170 C900 270 1120 100 1370 80 C1530 65 1660 130 1750 190 L1750 -100 L-100 -100 Z" fill="url(#opLightWave)"/>
+            </g>
+            <g class="wave-main">
+              <path d="M-100 500 C180 360 350 390 570 490 C820 610 990 520 1190 390 C1390 260 1540 330 1700 430 L1700 1050 L-100 1050 Z" fill="url(#opWaveGradient)" opacity=".9"/>
+              <path d="M-100 590 C170 470 370 500 590 590 C830 690 1030 610 1230 500 C1430 390 1580 460 1700 530" fill="none" stroke="#45b5ff" stroke-width="85" opacity=".12" filter="url(#opSoftBlur)"/>
+            </g>
+            <g class="wave-lower">
+              <path d="M-100 740 C180 600 400 640 620 730 C860 830 1070 760 1280 660 C1470 570 1600 640 1700 700 L1700 1050 L-100 1050 Z" fill="#032b78" opacity=".52"/>
+              <path d="M-100 790 C220 660 400 700 640 790 C880 880 1110 810 1320 710 C1490 630 1600 680 1700 740" fill="none" stroke="#168fff" stroke-width="55" opacity=".16" filter="url(#opSoftBlur)"/>
+            </g>
+            <path d="M-100 300 C250 180 430 250 680 330 C950 420 1190 290 1450 220 C1550 195 1640 220 1700 250" fill="none" stroke="#a4e2ff" stroke-width="3" opacity=".12" filter="url(#opSoftBlur)"/>
+          </svg>
+        </div>
+        <div class="animated-bg-choice-title">
+          <span>🌊 Blue Wave</span>
+          <span class="animated-bg-choice-badge" style="font-size:10px; color:#7dd3fc; letter-spacing:.06em;">SELECTED</span>
+        </div>
+        <div class="animated-bg-choice-note">Layered blue SVG waves with soft glow and continuous looping motion.</div>
+      </button>
+      <button type="button" id="animatedBgDigiBibleChoice" class="animated-bg-choice" data-animated-bg="digibible-blue" aria-pressed="false">
+        <div class="animated-bg-preview animated-bg-preview-digibible" aria-hidden="true">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="opDigiBase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#104d9a"/><stop offset=".55" stop-color="#086fba"/><stop offset="1" stop-color="#0871c6"/></linearGradient>
+              <linearGradient id="opDigiFront" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07549f"/><stop offset="1" stop-color="#073f8b"/></linearGradient>
+              <radialGradient id="opDigiGlow"><stop stop-color="#00a8e8" stop-opacity=".6"/><stop offset="1" stop-color="#078dd2" stop-opacity="0"/></radialGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#opDigiBase)"/>
+            <ellipse cx="1400" cy="160" rx="650" ry="380" fill="url(#opDigiGlow)"/>
+            <path d="M-100 820 C145 700 355 755 590 770 C845 790 1000 665 1255 650 C1480 636 1635 735 1810 720 C1900 712 1970 682 2020 675 L2020 1150 L-100 1150Z" fill="#0796d5" opacity=".55">
+              <animate attributeName="d" dur="10s" repeatCount="indefinite" values="M-100 820 C145 700 355 755 590 770 C845 790 1000 665 1255 650 C1480 636 1635 735 1810 720 C1900 712 1970 682 2020 675 L2020 1150 L-100 1150Z;M-100 835 C145 720 355 745 590 755 C845 770 1010 680 1260 665 C1480 650 1640 750 1810 735 C1900 727 1970 700 2020 690 L2020 1150 L-100 1150Z;M-100 820 C145 700 355 755 590 770 C845 790 1000 665 1255 650 C1480 636 1635 735 1810 720 C1900 712 1970 682 2020 675 L2020 1150 L-100 1150Z"/>
+            </path>
+            <path d="M-100 900 C100 805 245 785 430 798 C650 818 805 795 1000 765 C1190 735 1305 718 1425 760 C1540 800 1595 875 1668 875 C1760 875 1785 790 2020 755 L2020 1160 L-100 1160Z" fill="url(#opDigiFront)"/>
+          </svg>
+        </div>
+        <div class="animated-bg-choice-title">
+          <span>🌐 DigiBible Blue</span>
+          <span class="animated-bg-choice-badge" style="font-size:10px; color:#7dd3fc; letter-spacing:.06em;"></span>
+        </div>
+        <div class="animated-bg-choice-note">Atmospheric blue gradient with rolling layered waves, cyan glow and gentle motion.</div>
+      </button>
+      <button type="button" id="animatedBgPennantChoice" class="animated-bg-choice" data-animated-bg="spbb-pennant" aria-pressed="false">
+        <div class="animated-bg-preview animated-bg-preview-pennant" aria-hidden="true">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="opPennantBase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1d7acb"/><stop offset="1" stop-color="#073e7c"/></linearGradient>
+              <linearGradient id="opPennantGold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe344"/><stop offset=".5" stop-color="#ffc400"/><stop offset="1" stop-color="#f59b00"/></linearGradient>
+              <linearGradient id="opPennantBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53baff"/><stop offset=".5" stop-color="#218eff"/><stop offset="1" stop-color="#0870d6"/></linearGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#opPennantBase)"/>
+            <g opacity=".9">
+              <g transform="translate(260,80) rotate(-8)"><path d="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z" fill="url(#opPennantGold)"><animate attributeName="d" dur="3.1s" repeatCount="indefinite" values="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q120 95 40 180 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z"/></path><animateTransform attributeName="transform" type="rotate" values="-8 315 80;8 315 80;-8 315 80" dur="3.1s" repeatCount="indefinite"/></g>
+              <g transform="translate(470,55) rotate(8)"><path d="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z" fill="url(#opPennantBlue)"><animate attributeName="d" dur="3.5s" begin=".5s" repeatCount="indefinite" values="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q75 90 75 180 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z"/></path><animateTransform attributeName="transform" type="rotate" values="8 525 55;-9 525 55;8 525 55" dur="3.5s" repeatCount="indefinite"/></g>
+              <g transform="translate(690,95) rotate(-5)"><path d="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z" fill="url(#opPennantGold)"><animate attributeName="d" dur="3.3s" begin=".9s" repeatCount="indefinite" values="M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q115 80 35 175 Q10 100 0 0Z;M0 0 Q55 12 110 0 Q100 100 55 190 Q10 100 0 0Z"/></path></g>
+            </g>
+          </svg>
+        </div>
+        <div class="animated-bg-choice-title">
+          <span>🚩 SPBB Pennants</span>
+          <span class="animated-bg-choice-badge" style="font-size:10px; color:#7dd3fc; letter-spacing:.06em;"></span>
+        </div>
+        <div class="animated-bg-choice-note">Blue-and-gold fabric pennants with individual waving motion on a blue background.</div>
+      </button>
+      </div>
+      <div class="lan-modal-footer">
+        <button type="button" class="lan-btn" id="animatedBgCancelBtn">Cancel</button>
+        <button type="button" class="lan-btn primary" id="animatedBgApplyBtn">Apply Animated BG</button>
+      </div>
+    </div>
+  </div>
+
   <!-- QUICK CHANGE VERSE POPUP -->
   <div class="change-verse-backdrop" id="changeVerseBackdrop">
     <div class="change-verse-box">
@@ -907,7 +1071,7 @@
     </div>
   </div>
 
-  <script src="operator.js?v=20261104-xy-title-v2"></script>
+  <script src="operator.js?v=20261108-animated-bg-options-v2"></script>
 
 
 
