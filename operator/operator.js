@@ -13,6 +13,10 @@ let dragStartWordIdx = null;
 let dragTargetState = true;
 const DEFAULT_BACKGROUND_URL = '/images/Bible%20BG.jpg';
 let currentCustomBg = "url('" + DEFAULT_BACKGROUND_URL + "')";
+let animatedBgActive = localStorage.getItem('bible_background_mode') === 'animated';
+const VALID_ANIMATED_BG_SELECTIONS = new Set(['blue-wave', 'digibible-blue', 'spbb-pennant']);
+let selectedAnimatedBg = localStorage.getItem('bible_animated_bg_selection') || 'blue-wave';
+if (!VALID_ANIMATED_BG_SELECTIONS.has(selectedAnimatedBg)) selectedAnimatedBg = 'blue-wave';
 let verseHistoryList = [];
 let copiedSlotClipboard = null;
 let contextTargetSlot = 0;
@@ -243,6 +247,9 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
   const savedBgUrl = localStorage.getItem('bible_custom_bg_url');
   currentCustomBg = savedBgUrl && /^\/uploads\/backgrounds\/[a-f0-9]{32}\.(?:jpg|png|gif|webp|bmp)$/.test(savedBgUrl)
     ? "url('" + savedBgUrl + "')" : "url('" + DEFAULT_BACKGROUND_URL + "')";
+  animatedBgActive = localStorage.getItem('bible_background_mode') === 'animated';
+  selectedAnimatedBg = localStorage.getItem('bible_animated_bg_selection') || 'blue-wave';
+  if (typeof updateAnimatedBgButtonState === 'function') updateAnimatedBgButtonState();
 
   const opSize = parseInt(localStorage.getItem('bible_op_slot_font_size') || '24', 10);
   document.documentElement.style.setProperty('--op-slot-font-size', opSize + 'px');
@@ -284,6 +291,9 @@ function syncState(forcePreviewAnim) {
   const bgColor = document.getElementById('bgColor');
   let bgToSend = (transparentToggle && transparentToggle.checked) ? 'transparent' : (bgColor ? bgColor.value : '#004cff');
   if (currentCustomBg && transparentToggle && !transparentToggle.checked) bgToSend = currentCustomBg;
+  if (animatedBgActive && !(transparentToggle && transparentToggle.checked)) {
+    bgToSend = 'animated:' + (selectedAnimatedBg || 'blue-wave');
+  }
 
   const serializedSlots = slots.map(s => ({
     transId: s.transId || '001',
@@ -720,6 +730,11 @@ const bgImageInput = document.getElementById('bgImageInput');
 const bgColor = document.getElementById('bgColor');
 const transparentToggle = document.getElementById('transparentToggle');
 const hideVerseBoxToggle = document.getElementById('hideVerseBoxToggle');
+const animatedBgBtn = document.getElementById('animatedBgBtn');
+const animatedBgModal = document.getElementById('animatedBgModal');
+const animatedBgChoices = Array.from(document.querySelectorAll('[data-animated-bg]'));
+const animatedBgApplyBtn = document.getElementById('animatedBgApplyBtn');
+let pendingAnimatedBgSelection = selectedAnimatedBg;
 
 // Restore the last uploaded server-hosted background on Operator refresh.
 try {
@@ -729,11 +744,80 @@ try {
   }
 } catch (e) {}
 
+function updateAnimatedBgButtonState() {
+  if (!animatedBgBtn) return;
+  const isActive = animatedBgActive && !(transparentToggle && transparentToggle.checked);
+  animatedBgBtn.classList.toggle('animated-bg-active', isActive);
+  animatedBgBtn.setAttribute('aria-pressed', String(isActive));
+}
+
+function renderAnimatedBgChoice() {
+  animatedBgChoices.forEach(choice => {
+    const selected = choice.dataset.animatedBg === pendingAnimatedBgSelection;
+    choice.classList.toggle('selected', selected);
+    choice.setAttribute('aria-pressed', String(selected));
+    const badge = choice.querySelector('.animated-bg-choice-badge');
+    if (badge) badge.textContent = selected ? 'SELECTED' : '';
+  });
+}
+
+function openAnimatedBgModal() {
+  if (!animatedBgModal) return;
+  pendingAnimatedBgSelection = selectedAnimatedBg || 'blue-wave';
+  renderAnimatedBgChoice();
+  animatedBgModal.classList.add('open');
+}
+
+function closeAnimatedBgModal() {
+  if (animatedBgModal) animatedBgModal.classList.remove('open');
+}
+
+function disableAnimatedBackground() {
+  animatedBgActive = false;
+  try { localStorage.setItem('bible_background_mode', 'default'); } catch (e) {}
+  updateAnimatedBgButtonState();
+}
+
+if (animatedBgBtn) animatedBgBtn.addEventListener('click', openAnimatedBgModal);
+animatedBgChoices.forEach(choice => {
+  choice.addEventListener('click', () => {
+    const selectedId = choice.dataset.animatedBg;
+    if (!VALID_ANIMATED_BG_SELECTIONS.has(selectedId)) return;
+    pendingAnimatedBgSelection = selectedId;
+    renderAnimatedBgChoice();
+  });
+});
+if (animatedBgApplyBtn) {
+  animatedBgApplyBtn.addEventListener('click', () => {
+    selectedAnimatedBg = pendingAnimatedBgSelection || 'blue-wave';
+    animatedBgActive = true;
+    try {
+      localStorage.setItem('bible_background_mode', 'animated');
+      localStorage.setItem('bible_animated_bg_selection', selectedAnimatedBg);
+    } catch (e) {}
+    if (transparentToggle) transparentToggle.checked = false;
+    updateAnimatedBgButtonState();
+    closeAnimatedBgModal();
+    syncState();
+  });
+}
+['animatedBgCloseX', 'animatedBgCancelBtn'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', closeAnimatedBgModal);
+});
+if (animatedBgModal) {
+  animatedBgModal.addEventListener('click', event => {
+    if (event.target === animatedBgModal) closeAnimatedBgModal();
+  });
+}
+
 if (restoreDefaultBgBtn) {
   restoreDefaultBgBtn.addEventListener('click', () => {
+    disableAnimatedBackground();
     currentCustomBg = "url('" + DEFAULT_BACKGROUND_URL + "')";
     localStorage.setItem('bible_custom_bg_url', '');
     if (transparentToggle) transparentToggle.checked = false;
+    updateAnimatedBgButtonState();
     syncState();
   });
 }
@@ -756,9 +840,11 @@ if (uploadImgBtn && bgImageInput) {
       if (!response.ok || !result.url) {
         throw new Error(result.error || ('Upload failed (HTTP ' + response.status + ')'));
       }
+      disableAnimatedBackground();
       currentCustomBg = "url('" + result.url + "')";
       localStorage.setItem('bible_custom_bg_url', result.url);
       if (transparentToggle) transparentToggle.checked = false;
+      updateAnimatedBgButtonState();
       syncState();
       console.info('[Upload BG] Server-hosted background ready:', result.url);
     } catch (error) {
@@ -773,11 +859,16 @@ if (uploadImgBtn && bgImageInput) {
 }
 
 if (bgColor) bgColor.addEventListener('input', () => {
+  disableAnimatedBackground();
   currentCustomBg = null;
   try { localStorage.setItem('bible_custom_bg_url', ''); } catch (e) {}
   syncState();
 });
-if (transparentToggle) transparentToggle.addEventListener('change', () => syncState());
+if (transparentToggle) transparentToggle.addEventListener('change', () => {
+  if (transparentToggle.checked) disableAnimatedBackground();
+  updateAnimatedBgButtonState();
+  syncState();
+});
 if (hideVerseBoxToggle) {
   hideVerseBoxToggle.checked = window.customLayoutSettings.hideBoxBg;
   hideVerseBoxToggle.addEventListener('change', () => {
@@ -786,6 +877,8 @@ if (hideVerseBoxToggle) {
     syncState();
   });
 }
+updateAnimatedBgButtonState();
+renderAnimatedBgChoice();
 
 // VERSE NAVIGATION (PREV / NEXT)
 function goToNextVerse(slotIdx) {
