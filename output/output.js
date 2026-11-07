@@ -89,16 +89,8 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   // Keep the reference and translation label in their original size ratio.
   const titleScale = effectiveRefSize / Math.max(1, baseRefSz);
   const effectiveVerSize = baseVerSz * titleScale;
-  const stage = boxEl.closest('#multiSlotStage');
-  const rawZoomX = stage ? Number(stage.style.getPropertyValue('--slot-zoom-x')) : 1;
-  const rawZoomY = stage ? Number(stage.style.getPropertyValue('--slot-zoom-y')) : 1;
-  const isFramedMode = displayMode >= 1 && displayMode <= 4;
-  const zoomX = (isFramedMode && Number.isFinite(rawZoomX) && rawZoomX > 0)
-    ? Math.min(1.5, Math.max(0.5, rawZoomX)) : 1;
-  const zoomY = (isFramedMode && Number.isFinite(rawZoomY) && rawZoomY > 0)
-    ? Math.min(1.5, Math.max(0.5, rawZoomY)) : 1;
-  const fontFitScaleY = isFramedMode ? Math.min(zoomY, 1) : 1;
-  const fontFitScaleX = isFramedMode ? Math.min(zoomX, 1) : 1;
+  // Typography is fitted once on the native 16:9 canvas. Zoom X/Y then
+  // stretches/compresses the canvas and every text element together.
   const contentText = text.textContent.trim();
   const lengthBasedMax = getLengthBasedFontSize(contentText, lengthFontSizes);
   const requestedMax = Math.min(100, Math.max(28, Number.parseInt(baseMaxSize, 10) || 100));
@@ -119,11 +111,11 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   text.style.maxHeight = '100%';
   text.style.overflow = 'hidden';
 
-  const usableHeight = container.clientHeight * fontFitScaleY;
-  const usableWidth = container.clientWidth * fontFitScaleX;
+  const usableHeight = container.clientHeight;
+  const usableWidth = container.clientWidth;
   const fitKey = [
     text.dataset.verseKey || '', effectiveMax, effectiveRefSize, effectiveVerSize,
-    fontFitScaleX, fontFitScaleY, letterSpacing, lineHeight, container.clientWidth, container.clientHeight
+    letterSpacing, lineHeight, container.clientWidth, container.clientHeight
   ].join('|');
   if (text.dataset.fontFitKey === fitKey && text.dataset.fittedFontSize) return;
 
@@ -245,19 +237,25 @@ function renderOutputState(data) {
   const s = data.settings || {};
   const displayMode = parseInt(data.displayMode, 10) || 1;
   const modeSettings = (s.modeAdjustments && s.modeAdjustments[displayMode]) || {};
+  // FULL_COMPOSITION_BASELINE_FOR_SPLIT_MODES
+  // Treat every split view as a zoomed-out copy of the 1 Full composition.
+  // Keep the active mode's Zoom/Pan below, but take typography, spacing and
+  // inner padding from 1 Full so the verse never gets independently re-fitted
+  // or crowded when changing to 2 Split, 3 Split or 4 Grid.
+  const compositionSettings = displayMode === 1
+    ? modeSettings
+    : ((s.modeAdjustments && s.modeAdjustments[1]) || {});
   const readClampedInt = (value, fallback, min, max) => {
     const parsed = parseInt(value, 10);
     return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
   };
-  // Per-layout values override the global Box & Margin settings. Older clients
-  // and uncustomized layouts continue to inherit the global values unchanged.
-  const pad = readClampedInt(modeSettings.boxPadding ?? s.boxPadding, 70, 10, 90);
+  const pad = readClampedInt(compositionSettings.boxPadding ?? s.boxPadding, 70, 10, 90);
   const outerMargin = (s.screenMargin !== undefined) ? parseInt(s.screenMargin, 10) : 39;
   const hideBoxBg = Boolean(s.hideBoxBg);
   const baseMaxFont = readClampedInt(s.maxFontSize, 100, 14, 100);
-  const topGapPx = readClampedInt(modeSettings.topGap ?? s.topGap, 1, 0, 120);
-  const letterSpacingPx = readClampedFloat(modeSettings.letterSpacing, 0, -2, 10, 1);
-  const lineSpacing = readClampedFloat(modeSettings.lineSpacing, 1.55, 0.8, 2.5, 2);
+  const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 1, 0, 120);
+  const letterSpacingPx = readClampedFloat(compositionSettings.letterSpacing, 0, -2, 10, 1);
+  const lineSpacing = readClampedFloat(compositionSettings.lineSpacing, 1.55, 0.8, 2.5, 2);
   const lengthFontSizes = Array.isArray(s.lengthFontSizes) ? s.lengthFontSizes : DEFAULT_LENGTH_FONT_SIZES;
 
   document.documentElement.style.setProperty('--title-verse-gap', topGapPx + 'px');
@@ -338,7 +336,7 @@ function renderOutputState(data) {
 
     updateHighlightClasses(contentEl, wordsArr.length, highSet);
     applyBoxTypography(boxEl, data.fonts);
-    adjustSlotFontSize(boxEl, baseMaxFont, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing, modeSettings);
+    adjustSlotFontSize(boxEl, baseMaxFont, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing, compositionSettings);
   });
 }
 
