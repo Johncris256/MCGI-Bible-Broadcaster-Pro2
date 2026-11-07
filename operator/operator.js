@@ -639,6 +639,8 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   function closeMenu() { menu.classList.remove('open'); }
   function openMenu(mode, event, anchor) {
     editingMode = mode;
+    const typographySection = document.getElementById('modeAdjustTypographySection');
+    if (typographySection) typographySection.hidden = mode !== 1;
     const labels = { 1: '1 Full', 2: '2 Split', 3: '3 Split', 4: '4 Grid' };
     title.textContent = labels[mode] + ' — Layout Settings';
     refreshControls();
@@ -1595,9 +1597,11 @@ async function initWorkspace() {
 initWorkspace();
 
 
+// HIGHILIGHTER_LIVE_STATE_RELAY_FIX_V1
 function initOperatorSocket() {
   const wsHost = window.location.host || 'localhost:5000';
-  window.liveOperatorSocket = new WebSocket('ws://' + wsHost);
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+  window.liveOperatorSocket = new WebSocket(wsProtocol + wsHost);
   window.liveOperatorSocket.onopen = () => {
     console.log('✓ Operator connected to WebSocket Server');
     syncState();
