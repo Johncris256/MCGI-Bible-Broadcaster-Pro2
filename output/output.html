@@ -690,28 +690,26 @@
 </style>
 
 <style id="ALL-MODE-PROPORTIONAL-TEXT">
-  /* Keep reference and translation labels fixed in shape while X/Y Zoom changes;
-     their font size remains controlled by each layout's Title Size slider. */
+  /* Raster-style framing: title, translation label, and verse glyphs inherit
+     the same X/Y transform as their full 16:9 canvas. No inverse compensation. */
   #multiSlotStage.mode-1 .reference-text-guard,
   #multiSlotStage.mode-2 .reference-text-guard,
   #multiSlotStage.mode-3 .reference-text-guard,
   #multiSlotStage.mode-4 .reference-text-guard {
-    transform: scaleX(var(--slot-zoom-x-inverse, 1)) scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform: none !important;
     transform-origin: top left !important;
-    width: var(--slot-zoom-x-width, 100%);
+    width: 100%;
     min-width: 0;
   }
 
-  /* Keep verse glyphs proportional in every layout. Below 100% Zoom X/Y, the
-     JS fit calculation reduces font-size uniformly before inverse compensation. */
   #multiSlotStage.mode-1 .verse-text-guard,
   #multiSlotStage.mode-2 .verse-text-guard,
   #multiSlotStage.mode-3 .verse-text-guard,
   #multiSlotStage.mode-4 .verse-text-guard {
-    transform: scaleX(var(--slot-zoom-x-inverse, 1)) scaleY(var(--slot-zoom-y-inverse, 1)) !important;
+    transform: none !important;
     transform-origin: top center !important;
-    width: var(--slot-zoom-x-width, 100%);
-    max-width: var(--slot-zoom-x-width, 100%);
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
   }
 </style>
@@ -868,14 +866,13 @@
   <script src="output.js?v=20261104-xy-title-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
-
-
-
-
-
-
-
-
-
+<script src="output-layout-transition.js?v=20261107-slide-cleanup-v1"></script>
 </body>
 </html>
+
+
+
+
+
+
+
