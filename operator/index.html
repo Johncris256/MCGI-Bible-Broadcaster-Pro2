@@ -486,6 +486,7 @@
       <span id="modeAdjustPanYValue" class="mode-adjust-value">0px</span>
     </div>
     <hr class="mode-adjust-divider">
+    <div id="modeAdjustTypographySection">
     <div class="mode-adjust-section-label">Header & Verse Typography</div>
     <div class="mode-adjust-row">
       <label for="modeAdjustTitleSize">Title Size</label>
@@ -512,7 +513,9 @@
       <input id="modeAdjustLineSpacing" type="range" min="0.8" max="2.5" step="0.05" value="1.20">
       <span id="modeAdjustLineSpacingValue" class="mode-adjust-value">1.20</span>
     </div>
-    <p class="mode-adjust-note">Title Size scales the reference and Bible-version labels together. Verse font size follows the active content-length range, capped by Global Max (default 100px). Each layout keeps independent X/Y framing, title size and verse spacing.</p>
+    <p class="mode-adjust-note">Typography settings apply to every layout from 1 Full. Split layouts inherit the 1 Full typography; Zoom X/Y and Pan X/Y remain independently adjustable per layout.</p>
+    </div>
+
     <div class="mode-adjust-actions">
       <button type="button" id="modeAdjustReset">Reset</button>
       <button type="button" id="modeAdjustClosePrimary" class="primary">Done</button>
