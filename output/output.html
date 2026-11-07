@@ -195,8 +195,8 @@
 
   /* Smooth Hide/Unhide Transition */
   #multiSlotStage, .render-box {
-    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: opacity 0.4s cubic-bezier(0.42, 0, 0.58, 1),
+                transform 0.4s cubic-bezier(0.42, 0, 0.58, 1) !important;
   }
   body.hide-verse-box-active #multiSlotStage,
   body.hide-verse-box-active .render-box {
@@ -273,8 +273,8 @@
 
   /* Smooth Hide/Unhide Transition */
   #multiSlotStage, .render-box {
-    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: opacity 0.4s cubic-bezier(0.42, 0, 0.58, 1),
+                transform 0.4s cubic-bezier(0.42, 0, 0.58, 1) !important;
   }
   body.hide-verse-box-active #multiSlotStage,
   body.hide-verse-box-active .render-box {
@@ -423,7 +423,7 @@
       gap: 18px;
       width: calc(100vw - 110px);
       height: calc(100vh - 110px);
-      transition: width 0.2s ease, height 0.2s ease;
+      transition: width 0.2s cubic-bezier(0.42, 0, 0.58, 1), height 0.2s cubic-bezier(0.42, 0, 0.58, 1);
     }
     #multiSlotStage.mode-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
     #multiSlotStage.mode-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
@@ -535,11 +535,11 @@
       0% { opacity: 0; transform: scale(0.92); filter: blur(2px); }
       100% { opacity: 1; transform: scale(1); filter: blur(0px); }
     }
-    .anim-fade-slide { animation: animFadeSlide var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .anim-page-flip-next { animation: animPageFlipNext var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .anim-page-flip-prev { animation: animPageFlipPrev var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .anim-vertical-flip { animation: animVerticalFlip var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .anim-zoom-in { animation: animZoomIn var(--verse-anim-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-fade-slide { animation: animFadeSlide var(--verse-anim-duration) cubic-bezier(0.42, 0, 0.58, 1) forwards; }
+    .anim-page-flip-next { animation: animPageFlipNext var(--verse-anim-duration) cubic-bezier(0.42, 0, 0.58, 1) forwards; }
+    .anim-page-flip-prev { animation: animPageFlipPrev var(--verse-anim-duration) cubic-bezier(0.42, 0, 0.58, 1) forwards; }
+    .anim-vertical-flip { animation: animVerticalFlip var(--verse-anim-duration) cubic-bezier(0.42, 0, 0.58, 1) forwards; }
+    .anim-zoom-in { animation: animZoomIn var(--verse-anim-duration) cubic-bezier(0.42, 0, 0.58, 1) forwards; }
   </style>
 
     
@@ -902,10 +902,10 @@
     </div>
     </div>
   </div>
-  <script src="output.js?v=20261104-xy-title-v1"></script>
+  <script src="output.js?v=20261107-independent-header-font-sizes-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
-<script src="output-layout-transition.js?v=20261107-slide-cleanup-v1"></script>
+<script src="output-layout-transition.js?v=20261107-cubic-directional-v7"></script>
 <script id="OUTPUT_OPERATOR_HIGHLIGHT_AUTHORITY_V1">
   (function() {
     const originalRender = window.renderOutputState;
