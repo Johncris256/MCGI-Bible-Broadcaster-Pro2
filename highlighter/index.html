@@ -270,6 +270,9 @@
 
     .reference-container {
       text-align: left;
+            /* Small default indent separates the reference/translation header
+         from the centered verse content without changing the verse layout. */
+      padding-left: 20px;
       margin-bottom: var(--title-verse-gap, 18px);
       flex-shrink: 0;
       display: flex;
@@ -1577,8 +1580,8 @@
         // HIGHLIGHTER-ONLY HEADER DEFAULTS.
         // Keep these sizes independent of Output typography and device orientation.
         // Genesis reference = 30px; translation label = 15px on every Highlighter layout.
-        const refSize = 30;
-        const verSize = 15;
+        const refSize = 60;
+        const verSize = 55;
         if (refTitle) {
           refTitle.style.setProperty('font-size', refSize + 'px', 'important');
           refTitle.style.setProperty('line-height', '1.04', 'important');
