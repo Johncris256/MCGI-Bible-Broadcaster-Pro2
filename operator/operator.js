@@ -68,20 +68,20 @@ window.customOutputFonts = {
   refItalic: localStorage.getItem('bible_font_ref_italic') === 'true',
   refShadow: localStorage.getItem('bible_font_ref_shadow') !== 'false',
   version: localStorage.getItem('bible_font_ver') || DEFAULT_ARIAL,
-  verBold: localStorage.getItem('bible_font_ver_bold') !== 'false',
+  verBold: localStorage.getItem('bible_font_ver_bold') === 'true',
   verItalic: localStorage.getItem('bible_font_ver_italic') !== 'false',
   verShadow: localStorage.getItem('bible_font_ver_shadow') !== 'false',
   content: localStorage.getItem('bible_font_content') || DEFAULT_ARIAL,
   contentBold: localStorage.getItem('bible_font_content_bold') !== 'false',
   contentItalic: localStorage.getItem('bible_font_content_italic') === 'true',
   contentShadow: localStorage.getItem('bible_font_content_shadow') !== 'false',
-  refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '60', 10),
-  verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '45', 10),
+  refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '65', 10),
+  verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '60', 10),
   contentSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10)
 };
 
 window.customLayoutSettings = {
-  topGap: parseInt(localStorage.getItem('bible_top_gap') || '1', 10),
+  topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
   screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
   boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
   maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
@@ -90,14 +90,14 @@ window.customLayoutSettings = {
 
 // Per-layout defaults. New X framing and Title Size controls preserve the
 // existing Y framing, spacing, and verse-length font behavior.
-const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customOutputFonts.refSize) || 60));
+const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customOutputFonts.refSize) || 65));
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 11, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 25, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  3: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
-  4: Object.freeze({ zoomX: 82, panX: 0, zoomY: 82, panY: 0, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
+  3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
+  4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
 });
-const MODE_DEFAULTS_VERSION = '2026-11-07-layout-xy-title-v4';
+const MODE_DEFAULTS_VERSION = '2026-11-12-layout-defaults-reset-v7';
 function getDefaultModeAdjustment(mode) {
   return { ...(DEFAULT_MODE_ADJUSTMENTS[mode] || DEFAULT_MODE_ADJUSTMENTS[1]) };
 }
@@ -135,6 +135,11 @@ function migrateLegacyModeDefaults(value, mode) {
   if (item.zoomY === undefined || item.zoomY === null || (Number(item.zoomY) === 100 && defaults.zoomY !== 100)) item.zoomY = defaults.zoomY;
   if (item.panY === undefined || item.panY === null || (Number(item.panY) === 0 && defaults.panY !== 0)) item.panY = defaults.panY;
   if (item.topGap === undefined || item.topGap === null || Number(item.topGap) === 1) item.topGap = defaults.topGap;
+  // Upgrade the previous untouched 1 Full gap default (11px) to 25px;
+  // preserve other values as operator customizations.
+  if (mode === 1 && item.topGap !== undefined && item.topGap !== null && Number(item.topGap) === 11) {
+    item.topGap = defaults.topGap;
+  }
   if (item.boxPadding === undefined || item.boxPadding === null || Number(item.boxPadding) === 70) item.boxPadding = defaults.boxPadding;
   if (item.letterSpacing === undefined || item.letterSpacing === null || Number(item.letterSpacing) === 0) item.letterSpacing = defaults.letterSpacing;
   if (item.lineSpacing === undefined || item.lineSpacing === null || Number(item.lineSpacing) === 1.55) item.lineSpacing = defaults.lineSpacing;
@@ -151,8 +156,9 @@ function migrateLegacyModeDefaults(value, mode) {
       }
     });
   }
-  // Upgrade the untouched 82% Zoom X/Y values from the previous 3 Split / 4 Grid defaults.
-  // Values other than 82% remain as deliberate operator customizations.
+  // Upgrade untouched legacy Zoom defaults (82% or the earlier generic 100%)
+  // and the old neutral Pan Y (0px) to the current 3 Split / 4 Grid factory values.
+  // Values outside those known legacy defaults remain as deliberate customizations.
   const previousSplitZoomDefaults = {
     3: { zoomX: 82, zoomY: 82 },
     4: { zoomX: 82, zoomY: 82 }
@@ -192,14 +198,14 @@ window.customModeAdjustments = loadModeAdjustments();
 window.addEventListener('bbl-live-storage-hydrated', () => {
   // Upgrade old factory defaults once, but preserve values that the operator
   // had deliberately customized away from the old defaults.
-  const defaultsVersion = '2026-11-01-layout-typography-defaults-v3';
+  const defaultsVersion = '2026-11-12-bible-font-defaults-v1';
   if (localStorage.getItem('bible_defaults_version') !== defaultsVersion) {
     const upgrades = [
-      ['bible_font_ref_size', '38', '60'],
-      ['bible_font_ver_size', '19', '45'],
+      ['bible_font_ref_size', '38', '65'],
+      ['bible_font_ver_size', '19', '60'],
       ['bible_max_font_size', '46', '100'],
       ['bible_screen_margin', '55', '39'],
-      ['bible_top_gap', '18', '1'],
+      ['bible_top_gap', '18', '25'],
       ['bible_box_padding', '40', '70'],
       ['bible_op_slot_font_size', '26', '24']
     ];
@@ -207,12 +213,35 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
       const current = localStorage.getItem(key);
       if (current === null || current === oldValue) localStorage.setItem(key, newValue);
     });
+    // Upgrade the previous untouched font defaults to the new screenshot values.
+    // Other saved values are retained as operator customizations.
+    if (localStorage.getItem('bible_font_ref_size') === '60') {
+      localStorage.setItem('bible_font_ref_size', '65');
+    }
+    if (localStorage.getItem('bible_font_ver_size') === '45') {
+      localStorage.setItem('bible_font_ver_size', '60');
+    }
+    // Upgrade the previous untouched shared gap default (1px) to 25px.
+    if (localStorage.getItem('bible_top_gap') === '1') {
+      localStorage.setItem('bible_top_gap', '25');
+    }
     // The old global Max default was 72px. Move that untouched default to 100px
     // so the new content-length presets (including the 100px short-verse row) work.
     if (['72', '80'].includes(localStorage.getItem('bible_max_font_size'))) {
       localStorage.setItem('bible_max_font_size', '100');
     }
-    localStorage.setItem('bible_defaults_version', '2026-11-01-layout-typography-defaults-v3');
+    localStorage.setItem('bible_defaults_version', '2026-11-12-bible-font-defaults-v1');
+  }
+
+  // Bible Translation factory default: regular weight (not bold).
+  // Migrate the previous untouched default once; preserve an explicit false.
+  const translationBoldDefaultsVersion = '2026-11-12-bible-translation-regular-v1';
+  if (localStorage.getItem('bible_translation_bold_defaults_version') !== translationBoldDefaultsVersion) {
+    const savedTranslationBold = localStorage.getItem('bible_font_ver_bold');
+    if (savedTranslationBold === null || savedTranslationBold === 'true') {
+      localStorage.setItem('bible_font_ver_bold', 'false');
+    }
+    localStorage.setItem('bible_translation_bold_defaults_version', translationBoldDefaultsVersion);
   }
 
   // Re-read settings only after server memory has hydrated, avoiding old
@@ -223,20 +252,20 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     refItalic: localStorage.getItem('bible_font_ref_italic') === 'true',
     refShadow: localStorage.getItem('bible_font_ref_shadow') !== 'false',
     version: localStorage.getItem('bible_font_ver') || DEFAULT_ARIAL,
-    verBold: localStorage.getItem('bible_font_ver_bold') !== 'false',
+    verBold: localStorage.getItem('bible_font_ver_bold') === 'true',
     verItalic: localStorage.getItem('bible_font_ver_italic') !== 'false',
     verShadow: localStorage.getItem('bible_font_ver_shadow') !== 'false',
     content: localStorage.getItem('bible_font_content') || DEFAULT_ARIAL,
     contentBold: localStorage.getItem('bible_font_content_bold') !== 'false',
     contentItalic: localStorage.getItem('bible_font_content_italic') === 'true',
     contentShadow: localStorage.getItem('bible_font_content_shadow') !== 'false',
-    refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '60', 10),
-    verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '45', 10),
+    refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '65', 10),
+    verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '60', 10),
     contentSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10)
   };
   window.customLayoutSettings = {
     screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
-    topGap: parseInt(localStorage.getItem('bible_top_gap') || '1', 10),
+    topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
     boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
     maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
     hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true'
@@ -322,7 +351,7 @@ function syncState(forcePreviewAnim) {
     navDirection: window.lastNavDirection || 'next',
     forcePreviewAnim: Boolean(forcePreviewAnim),
     settings: {
-      topGap: (window.customLayoutSettings.topGap ?? 1) + 'px',
+      topGap: (window.customLayoutSettings.topGap ?? 25) + 'px',
       boxPadding: window.customLayoutSettings.boxPadding ?? 70,
       screenMargin: window.customLayoutSettings.screenMargin ?? 39,
       maxFontSize: window.customLayoutSettings.maxFontSize || 100,
@@ -687,9 +716,16 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   letterSpacingRange.addEventListener('input', () => saveAndBroadcast('letterSpacing'));
   lineSpacingRange.addEventListener('input', () => saveAndBroadcast('lineSpacing'));
   resetBtn.addEventListener('click', () => {
-    // Reset only this layout to the defaults shown in the screenshots.
-    window.customModeAdjustments[editingMode] = getDefaultModeAdjustment(editingMode);
-    try { localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments)); localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION); } catch (e) {}
+    // Reset only the selected layout to the current factory defaults.
+    // For 3 Split and 4 Grid this is explicitly 85 / 0 / 85 / +22.
+    const factoryDefaults = getDefaultModeAdjustment(editingMode);
+    window.customModeAdjustments[editingMode] = normalizeModeAdjustment(factoryDefaults, editingMode);
+    try {
+      localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments));
+      localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION);
+    } catch (error) {
+      console.warn('Unable to persist layout defaults:', error);
+    }
     refreshControls();
     syncState();
   });
@@ -1269,8 +1305,8 @@ function initFontModalValues() {
   const refSizeEl = document.getElementById('fontRefSizeInput');
   const verSizeEl = document.getElementById('fontVerSizeInput');
   const contentSizeEl = document.getElementById('fontContentSizeInput');
-  if (refSizeEl) refSizeEl.value = window.customOutputFonts.refSize || 60;
-  if (verSizeEl) verSizeEl.value = window.customOutputFonts.verSize || 45;
+  if (refSizeEl) refSizeEl.value = window.customOutputFonts.refSize || 65;
+  if (verSizeEl) verSizeEl.value = window.customOutputFonts.verSize || 60;
   if (contentSizeEl) contentSizeEl.value = window.customLayoutSettings.maxFontSize || 100;
   document.querySelectorAll('[data-length-font-index]').forEach(input => {
     const index = parseInt(input.dataset.lengthFontIndex, 10);
@@ -1287,8 +1323,8 @@ if (fontBtn && fontModal) {
   document.getElementById('fontCloseX').addEventListener('click', () => fontModal.classList.remove('open'));
 
   function syncFontsLive() {
-    const rSize = parseInt(document.getElementById('fontRefSizeInput')?.value, 10) || 60;
-    const vSize = parseInt(document.getElementById('fontVerSizeInput')?.value, 10) || 45;
+    const rSize = parseInt(document.getElementById('fontRefSizeInput')?.value, 10) || 65;
+    const vSize = parseInt(document.getElementById('fontVerSizeInput')?.value, 10) || 60;
     const cSize = parseInt(document.getElementById('fontContentSizeInput')?.value, 10) || 100;
 
     window.customOutputFonts = {
@@ -1353,15 +1389,15 @@ if (fontBtn && fontModal) {
     document.getElementById('fontRefItalicChk').checked = false;
     document.getElementById('fontRefShadowChk').checked = true;
     document.getElementById('fontVerSelect').value = DEFAULT_ARIAL;
-    document.getElementById('fontVerBoldChk').checked = true;
+    document.getElementById('fontVerBoldChk').checked = false;
     document.getElementById('fontVerItalicChk').checked = true;
     document.getElementById('fontVerShadowChk').checked = true;
     document.getElementById('fontContentSelect').value = DEFAULT_ARIAL;
     document.getElementById('fontContentBoldChk').checked = true;
     document.getElementById('fontContentItalicChk').checked = false;
     document.getElementById('fontContentShadowChk').checked = true;
-    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 60;
-    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 45;
+    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 65;
+    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 60;
     if (document.getElementById('fontContentSizeInput')) document.getElementById('fontContentSizeInput').value = 100;
     window.customLengthFontSizes = [...DEFAULT_LENGTH_FONT_SIZES];
     document.querySelectorAll('[data-length-font-index]').forEach(input => {
@@ -1467,7 +1503,7 @@ if (layoutBtn && layoutModal) {
   });
   document.getElementById('layoutResetBtn').addEventListener('click', () => {
     document.getElementById('layoutScreenMarginRange').value = 39;
-    document.getElementById('layoutTopGapRange').value = 1;
+    document.getElementById('layoutTopGapRange').value = 25;
     document.getElementById('layoutBoxPaddingRange').value = 70;
     document.getElementById('layoutMaxFontRange').value = 100;
     document.getElementById('layoutHideBoxChk').checked = false;
