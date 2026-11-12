@@ -407,7 +407,7 @@
       --verse-anim-duration: 0.55s;
       --highlight-anim-duration: 0.35s;
       --highlight-bg-color: rgba(250, 204, 21, 0.5);
-      --title-verse-gap: 18px;
+      --title-verse-gap: 25px;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -421,8 +421,15 @@
     #multiSlotStage {
       display: grid;
       gap: 18px;
-      width: calc(100vw - 110px);
-      height: calc(100vh - 110px);
+      /* Fallback sizing before the first live payload arrives. The script
+         computes the same 16:9 contain-fit using a resolution-scaled margin. */
+      width: min(calc(100vw - 78px), calc((100vh - 78px) * 16 / 9));
+      height: auto;
+      aspect-ratio: 16 / 9;
+      max-width: calc(100vw - 78px);
+      max-height: calc(100vh - 78px);
+      flex: 0 0 auto;
+      box-sizing: border-box;
       transition: width 0.2s cubic-bezier(0.42, 0, 0.58, 1), height 0.2s cubic-bezier(0.42, 0, 0.58, 1);
     }
     #multiSlotStage.mode-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -456,7 +463,10 @@
     }
     .reference-container {
       text-align: left;
-      margin-bottom: var(--title-verse-gap, 18px);
+      /* Small default indent separates the reference/translation header
+         from the centered verse content without changing the verse layout. */
+      padding-left: 20px;
+      margin-bottom: var(--title-verse-gap, 25px);
       flex-shrink: 0;
     }
     .reference-title {
@@ -471,7 +481,7 @@
       font-size: 20px;
       font-weight: 700;
       font-style: italic;
-      color: #facc15;
+      color: #FFFF00;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       margin-top: 2px;
@@ -903,7 +913,7 @@
     </div>
   </div>
   <script src="output-animated-backgrounds.js?v=20261108-animated-bg-options-v2"></script>
-  <script src="output.js?v=20261108-animated-bg-options-v2"></script>
+  <script src="output.js?v=20261112-bible-translation-yellow-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
 <script src="output-layout-transition.js?v=20261107-cubic-directional-v7"></script>
