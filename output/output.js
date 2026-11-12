@@ -156,13 +156,32 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
 }
 
 function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
-  const margin = Math.max(0, Number(outerMargin) || 0);
-  const availableWidth = Math.max(160, window.innerWidth - margin * 2);
-  const availableHeight = Math.max(90, window.innerHeight - margin * 2);
-  const width = Math.min(availableWidth, availableHeight * 16 / 9);
+  // Treat the safety-margin setting as a 1920x1080 design-space value.
+  // Scaling it with the viewport keeps the same visual safe-area proportion
+  // on 720p, 1080p, 4K, and smaller windowed browser viewports.
+  const margin = Math.max(0, Math.min(120, Number(outerMargin) || 0));
+  const root = document.documentElement;
+  const viewportWidth = Math.max(1, root.clientWidth || window.innerWidth || 1);
+  const viewportHeight = Math.max(1, root.clientHeight || window.innerHeight || 1);
+  const referenceScale = Math.max(0.01, Math.min(viewportWidth / 1920, viewportHeight / 1080));
+  const scaledMargin = margin * referenceScale;
+
+  // The output composition itself is ALWAYS 16:9. In non-16:9 windows,
+  // unused space becomes letterboxing around the centered composition.
+  const availableWidth = Math.max(1, viewportWidth - scaledMargin * 2);
+  const availableHeight = Math.max(1, viewportHeight - scaledMargin * 2);
+  const width = Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
   const height = width * 9 / 16;
+
   stage.style.width = width + 'px';
   stage.style.height = height + 'px';
+  stage.style.aspectRatio = '16 / 9';
+  stage.style.maxWidth = availableWidth + 'px';
+  stage.style.maxHeight = availableHeight + 'px';
+  stage.style.flex = '0 0 auto';
+  stage.dataset.outputAspectRatio = '16:9';
+  stage.style.setProperty('--output-safe-margin', scaledMargin + 'px');
+  stage.style.setProperty('--output-viewport-scale', String(referenceScale));
   stage.style.setProperty('--canvas-width', width + 'px');
   stage.style.setProperty('--canvas-height', height + 'px');
 
@@ -173,7 +192,7 @@ function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
   } else if (displayMode === 3 || displayMode === 4) {
     scale = Math.min((width - gap) / (2 * width), (height - gap) / (2 * height), 1);
   }
-  stage.style.setProperty('--slot-scale', String(Math.max(0.05, scale)));
+  stage.style.setProperty('--slot-scale', String(Math.max(0.01, scale)));
 }
 
 function applyModeFramingAdjustment(stage, displayMode, adjustments) {
@@ -217,6 +236,7 @@ function applyBoxTypography(boxEl, fonts) {
     outVerEl.style.setProperty('font-family', f.version || defaultFont, 'important');
     outVerEl.style.setProperty('font-weight', f.verBold ? '700' : '400', 'important');
     outVerEl.style.setProperty('font-style', f.verItalic ? 'italic' : 'normal', 'important');
+    outVerEl.style.setProperty('color', '#FFFF00', 'important');
     outVerEl.style.setProperty('text-shadow', verShadowOn ? defaultShadow : 'none', 'important');
   }
   if (outContentEl) {
@@ -407,7 +427,7 @@ function renderOutputState(data) {
   const outerMargin = (s.screenMargin !== undefined) ? parseInt(s.screenMargin, 10) : 39;
   const hideBoxBg = Boolean(s.hideBoxBg);
   const baseMaxFont = readClampedInt(s.maxFontSize, 100, 14, 100);
-  const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 1, 0, 120);
+  const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 25, 0, 120);
   const letterSpacingPx = readClampedFloat(compositionSettings.letterSpacing, 0, -2, 10, 1);
   const lineSpacing = readClampedFloat(compositionSettings.lineSpacing, 1.55, 0.8, 2.5, 2);
   const lengthFontSizes = Array.isArray(s.lengthFontSizes) ? s.lengthFontSizes : DEFAULT_LENGTH_FONT_SIZES;
@@ -526,9 +546,26 @@ if (savedInit) {
   try { renderOutputState(JSON.parse(savedInit)); } catch (err) {}
 }
 
-window.addEventListener('resize', () => {
-  if (lastReceivedData) renderOutputState(lastReceivedData);
-});
+// Keep the 16:9 composition fitted when the desktop resolution changes or
+// the browser is resized, restored, or moved between differently sized windows.
+let outputViewportResizeFrame = null;
+function scheduleOutputViewportRefit() {
+  if (outputViewportResizeFrame !== null) cancelAnimationFrame(outputViewportResizeFrame);
+  outputViewportResizeFrame = requestAnimationFrame(() => {
+    outputViewportResizeFrame = null;
+    if (lastReceivedData) {
+      renderOutputState(lastReceivedData);
+      return;
+    }
+    const stage = document.getElementById('multiSlotStage');
+    if (stage) fitOutputStageTo16x9(stage, 39, 1);
+  });
+}
+window.addEventListener('resize', scheduleOutputViewportRefit, { passive: true });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scheduleOutputViewportRefit, { passive: true });
+}
+window.addEventListener('orientationchange', scheduleOutputViewportRefit, { passive: true });
 
 // WEBSOCKET REAL-TIME SYNC ENGINE (OBS + ALL BROWSERS)
 function connectLiveSocket() {
