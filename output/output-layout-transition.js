@@ -102,36 +102,39 @@
 
   function getStageScale(stage) {
     const transform = window.getComputedStyle(stage).transform;
-    if (!transform || transform === 'none') return { x: 1, y: 1 };
+    let stageX = 1;
+    let stageY = 1;
 
     try {
       const Matrix = window.DOMMatrixReadOnly || window.DOMMatrix;
-      if (typeof Matrix === 'function') {
+      if (typeof Matrix === 'function' && transform && transform !== 'none') {
         const matrix = new Matrix(transform);
-        return {
-          x: Math.abs(matrix.a) > 0.0001 ? Math.abs(matrix.a) : 1,
-          y: Math.abs(matrix.d) > 0.0001 ? Math.abs(matrix.d) : 1
-        };
+        stageX = Math.abs(matrix.a) > 0.0001 ? Math.abs(matrix.a) : 1;
+        stageY = Math.abs(matrix.d) > 0.0001 ? Math.abs(matrix.d) : 1;
       }
     } catch (_) {}
 
-    const match2d = transform.match(/^matrix\(([^)]+)\)$/);
-    if (match2d) {
-      const values = match2d[1].split(',').map(Number);
-      return {
-        x: Math.abs(values[0]) > 0.0001 ? Math.abs(values[0]) : 1,
-        y: Math.abs(values[3]) > 0.0001 ? Math.abs(values[3]) : 1
-      };
+    if (stageX === 1 && stageY === 1 && transform && transform !== 'none') {
+      const match2d = transform.match(/^matrix\(([^)]+)\)$/);
+      const match3d = transform.match(/^matrix3d\(([^)]+)\)$/);
+      if (match2d) {
+        const values = match2d[1].split(',').map(Number);
+        stageX = Math.abs(values[0]) > 0.0001 ? Math.abs(values[0]) : 1;
+        stageY = Math.abs(values[3]) > 0.0001 ? Math.abs(values[3]) : 1;
+      } else if (match3d) {
+        const values = match3d[1].split(',').map(Number);
+        stageX = Math.abs(values[0]) > 0.0001 ? Math.abs(values[0]) : 1;
+        stageY = Math.abs(values[5]) > 0.0001 ? Math.abs(values[5]) : 1;
+      }
     }
-    const match3d = transform.match(/^matrix3d\(([^)]+)\)$/);
-    if (match3d) {
-      const values = match3d[1].split(',').map(Number);
-      return {
-        x: Math.abs(values[0]) > 0.0001 ? Math.abs(values[0]) : 1,
-        y: Math.abs(values[5]) > 0.0001 ? Math.abs(values[5]) : 1
-      };
-    }
-    return { x: 1, y: 1 };
+
+    // FLIP deltas are measured in viewport pixels but applied inside the
+    // transformed stage. Include the fixed 16:9 screen's outer uniform scale.
+    const screen = document.getElementById('outputScreen');
+    const screenScale = screen
+      ? Math.max(0.0001, Number.parseFloat(getComputedStyle(screen).getPropertyValue('--output-screen-scale')) || 1)
+      : 1;
+    return { x: stageX * screenScale, y: stageY * screenScale };
   }
 
   function getCenter(rect) {
@@ -139,6 +142,13 @@
   }
 
   function getViewportRect() {
+    // Layout entries/exits are relative to the actual 1920x1080 program frame,
+    // not the browser window or its black letterbox bars.
+    const screen = document.getElementById('outputScreen');
+    if (screen) {
+      const rect = screen.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    }
     const width = Math.max(1, document.documentElement.clientWidth || window.innerWidth || 1);
     const height = Math.max(1, document.documentElement.clientHeight || window.innerHeight || 1);
     return { left: 0, top: 0, right: width, bottom: height, width, height };
