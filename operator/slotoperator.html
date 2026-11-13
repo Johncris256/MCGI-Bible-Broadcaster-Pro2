@@ -1190,9 +1190,9 @@
       if (referenceContainer) referenceContainer.style.marginBottom = topGap + 'px';
 
       const hidden = !!settings.hideBoxBg;
-      const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 100, 10);
+      const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 78, 10);
       const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 100)) / 100;
-      const blendMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'multiply';
+      const blendMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'default';
       const tint = blendMode === 'multiply' ? '#8499B8' : (blendMode === 'darken' ? '#243B5E' : '#0A193C');
       if (slotMonitorBlend) {
         slotMonitorBlend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
