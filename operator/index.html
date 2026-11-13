@@ -181,15 +181,21 @@
       gap: 12px; padding: 12px 16px 6px 16px; overflow: hidden;
     }
     .slot-card {
-      background: #0d1322; border: 1px solid #1e293b; border-radius: 8px;
+      background: #0d1322; border: 2px solid #22c55e; border-radius: 8px;
       display: flex; flex-direction: column; overflow: hidden; cursor: pointer;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .slot-card.active-slot {
-      border: 2px solid #facc15 !important;
-      box-shadow: 0 0 14px rgba(250, 204, 21, 0.2);
+    /* Border color reflects whether this slot is currently visible on Output.
+       Keep a constant 2px border so switching LIVE/STAGING never shifts layout. */
+    .slot-card.live-slot {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.10);
     }
-    .slot-card.drag-over { border: 2px dashed #38bdf8 !important; }
+    .slot-card.staging-slot {
+      border-color: #22c55e !important;
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08);
+    }
+    .slot-card.drag-over { border: 2px dashed #38bdf8 !important; box-shadow: none !important; }
     .slot-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 7px 12px; background: rgba(15, 23, 42, 0.7);
@@ -856,7 +862,7 @@
 
   <!-- 4-SLOT WORKSPACE -->
   <main class="workspace-grid" id="workspaceGrid">
-    <div class="slot-card active-slot" data-slot="0" draggable="true">
+    <div class="slot-card active-slot live-slot" data-slot="0" draggable="true">
       <div class="slot-header">
         <div class="slot-left-meta">
           <span class="drag-dots" title="Drag to swap slot">⠿</span>
@@ -874,7 +880,7 @@
       <div class="slot-canvas" id="slotCanvas0"></div>
     </div>
 
-    <div class="slot-card" data-slot="1" draggable="true">
+    <div class="slot-card staging-slot" data-slot="1" draggable="true">
       <div class="slot-header">
         <div class="slot-left-meta">
           <span class="drag-dots" title="Drag to swap slot">⠿</span>
@@ -892,7 +898,7 @@
       <div class="slot-canvas" id="slotCanvas1"></div>
     </div>
 
-    <div class="slot-card" data-slot="2" draggable="true">
+    <div class="slot-card staging-slot" data-slot="2" draggable="true">
       <div class="slot-header">
         <div class="slot-left-meta">
           <span class="drag-dots" title="Drag to swap slot">⠿</span>
@@ -910,7 +916,7 @@
       <div class="slot-canvas" id="slotCanvas2"></div>
     </div>
 
-    <div class="slot-card" data-slot="3" draggable="true">
+    <div class="slot-card staging-slot" data-slot="3" draggable="true">
       <div class="slot-header">
         <div class="slot-left-meta">
           <span class="drag-dots" title="Drag to swap slot">⠿</span>
