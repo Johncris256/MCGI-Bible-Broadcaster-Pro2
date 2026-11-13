@@ -155,33 +155,47 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   text.dataset.fontFitKey = fitKey;
 }
 
-function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
-  // Treat the safety-margin setting as a 1920x1080 design-space value.
-  // Scaling it with the viewport keeps the same visual safe-area proportion
-  // on 720p, 1080p, 4K, and smaller windowed browser viewports.
-  const margin = Math.max(0, Math.min(120, Number(outerMargin) || 0));
+function fitOutputScreenToViewport(screen) {
   const root = document.documentElement;
   const viewportWidth = Math.max(1, root.clientWidth || window.innerWidth || 1);
   const viewportHeight = Math.max(1, root.clientHeight || window.innerHeight || 1);
-  const referenceScale = Math.max(0.01, Math.min(viewportWidth / 1920, viewportHeight / 1080));
-  const scaledMargin = margin * referenceScale;
+  const scale = Math.max(0.0001, Math.min(viewportWidth / 1920, viewportHeight / 1080));
+  if (screen) {
+    screen.style.setProperty('--output-screen-scale', String(scale));
+    screen.dataset.designWidth = '1920';
+    screen.dataset.designHeight = '1080';
+    screen.dataset.designAspectRatio = '16:9';
+  }
+  return scale;
+}
 
-  // The output composition itself is ALWAYS 16:9. In non-16:9 windows,
-  // unused space becomes letterboxing around the centered composition.
-  const availableWidth = Math.max(1, viewportWidth - scaledMargin * 2);
-  const availableHeight = Math.max(1, viewportHeight - scaledMargin * 2);
-  const width = Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
-  const height = width * 9 / 16;
+function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
+  // Stage geometry is calculated only in the fixed 1920x1080 design space.
+  // Browser size/orientation changes scale the parent screen, never this stage.
+  const margin = Math.max(0, Math.min(120, Number(outerMargin) || 0));
+  const screen = document.getElementById('outputScreen');
+  fitOutputScreenToViewport(screen);
 
+  const width = Math.max(1, 1920 - margin * 2);
+  const height = Math.max(1, 1080 - margin * 2);
+  stage.style.position = 'absolute';
+  stage.style.left = margin + 'px';
+  stage.style.top = margin + 'px';
   stage.style.width = width + 'px';
   stage.style.height = height + 'px';
   stage.style.aspectRatio = '16 / 9';
-  stage.style.maxWidth = availableWidth + 'px';
-  stage.style.maxHeight = availableHeight + 'px';
-  stage.style.flex = '0 0 auto';
+  stage.style.maxWidth = 'none';
+  stage.style.maxHeight = 'none';
+  stage.style.flex = 'none';
   stage.dataset.outputAspectRatio = '16:9';
-  stage.style.setProperty('--output-safe-margin', scaledMargin + 'px');
-  stage.style.setProperty('--output-viewport-scale', String(referenceScale));
+  stage.style.setProperty('--output-safe-margin', margin + 'px');
+  stage.style.setProperty('--screen-safe-margin', margin + 'px');
+  stage.style.setProperty('--output-viewport-scale', String(
+    Math.max(0.0001, Math.min(
+      (document.documentElement.clientWidth || window.innerWidth || 1) / 1920,
+      (document.documentElement.clientHeight || window.innerHeight || 1) / 1080
+    ))
+  ));
   stage.style.setProperty('--canvas-width', width + 'px');
   stage.style.setProperty('--canvas-height', height + 'px');
 
@@ -259,7 +273,7 @@ function ensureOutputBlueWaveStyles() {
   style.id = OUTPUT_BLUE_WAVE_STYLE_ID;
   style.textContent = `
     #${OUTPUT_BLUE_WAVE_LAYER_ID} {
-      position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100vh;
+      position: absolute; inset: 0; z-index: 0; width: 1920px; height: 1080px;
       overflow: hidden; pointer-events: none;
       background: linear-gradient(45deg,#06368f 0%,#0757b8 35%,#167fdb 70%,#38a9ff 100%);
     }
@@ -268,29 +282,16 @@ function ensureOutputBlueWaveStyles() {
     #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-upper { transform-origin:center; animation: outputBlueWaveUpper 15s ease-in-out infinite alternate; }
     #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-lower { transform-origin:center; animation: outputBlueWaveLower 13s ease-in-out infinite alternate; }
     #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-glow { animation: outputBlueWaveGlow 7s ease-in-out infinite alternate; }
-    @keyframes outputBlueWaveMain {
-      0% { transform:translate(-2.5%,1.5%) scale(1.02); }
-      100% { transform:translate(2.5%,-1.5%) scale(1.05); }
-    }
-    @keyframes outputBlueWaveUpper {
-      0% { transform:translate(2%,-1.5%) scale(1.02); }
-      100% { transform:translate(-2%,1.5%) scale(1.04); }
-    }
-    @keyframes outputBlueWaveLower {
-      0% { transform:translate(-2%,1.5%) scale(1.02); }
-      100% { transform:translate(2%,-1.5%) scale(1.04); }
-    }
-    @keyframes outputBlueWaveGlow {
-      0% { opacity:.35; }
-      100% { opacity:.85; }
-    }
+    @keyframes outputBlueWaveMain { 0% { transform:translate(-2.5%,1.5%) scale(1.02); } 100% { transform:translate(2.5%,-1.5%) scale(1.05); } }
+    @keyframes outputBlueWaveUpper { 0% { transform:translate(2%,-1.5%) scale(1.02); } 100% { transform:translate(-2%,1.5%) scale(1.04); } }
+    @keyframes outputBlueWaveLower { 0% { transform:translate(-2%,1.5%) scale(1.02); } 100% { transform:translate(2%,-1.5%) scale(1.04); } }
+    @keyframes outputBlueWaveGlow { 0% { opacity:.35; } 100% { opacity:.85; } }
     @media (prefers-reduced-motion: reduce) {
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-main,
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-upper,
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-lower,
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-glow,
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} animate,
-      #${OUTPUT_BLUE_WAVE_LAYER_ID} animateTransform { display:none !important; animation:none !important; }
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-main, #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-upper,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-lower, #${OUTPUT_BLUE_WAVE_LAYER_ID} .wave-glow,
+      #${OUTPUT_BLUE_WAVE_LAYER_ID} animate, #${OUTPUT_BLUE_WAVE_LAYER_ID} animateTransform {
+        display:none !important; animation:none !important;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -333,66 +334,58 @@ function createOutputBlueWaveMarkup() {
   `;
 }
 
+
 function createOutputAnimatedBackgroundMarkup(selectionId) {
   if (selectionId === 'blue-wave') return createOutputBlueWaveMarkup();
   const library = window.OUTPUT_ANIMATED_BACKGROUND_LIBRARY || {};
   return typeof library[selectionId] === 'string' ? library[selectionId] : createOutputBlueWaveMarkup();
 }
 
+
 function applyOutputBackground(backgroundValue) {
-  const body = document.body;
-  const html = document.documentElement;
+  const screen = document.getElementById('outputScreen');
   const stage = document.getElementById('multiSlotStage');
+  if (!screen) return;
   const isAnimated = typeof backgroundValue === 'string' && backgroundValue.startsWith('animated:');
   let layer = document.getElementById(OUTPUT_BLUE_WAVE_LAYER_ID);
 
   if (isAnimated) {
     const selectionId = backgroundValue.slice('animated:'.length) || 'blue-wave';
-    // Keep the SVG DOM alive across verse/highlight updates. Only replace it
-    // when the operator actually selects a different animated background.
+    // Keep the SVG DOM alive across verse/highlight updates. It lives inside
+    // the fixed screen so it scales/crops exactly with the full 1920x1080 frame.
     if (layer && layer.dataset.backgroundSelection === selectionId) {
       lastOutputBackgroundMode = backgroundValue;
       return;
     }
-
     ensureOutputBlueWaveStyles();
     if (!layer) {
       layer = document.createElement('div');
       layer.id = OUTPUT_BLUE_WAVE_LAYER_ID;
-      document.body.insertBefore(layer, document.body.firstChild);
+      screen.insertBefore(layer, stage || screen.firstChild);
     }
     layer.dataset.backgroundSelection = selectionId;
     layer.innerHTML = createOutputAnimatedBackgroundMarkup(selectionId);
-
-    body.style.backgroundColor = 'transparent';
-    body.style.backgroundImage = 'none';
-    html.style.backgroundColor = 'transparent';
-    if (stage) {
-      stage.style.position = 'relative';
-      stage.style.zIndex = '1';
-    }
+    screen.style.backgroundColor = 'transparent';
+    screen.style.backgroundImage = 'none';
+    if (stage) stage.style.zIndex = '1';
     lastOutputBackgroundMode = backgroundValue;
     return;
   }
 
   if (layer) layer.remove();
-  if (stage) {
-    stage.style.zIndex = '';
-    stage.style.position = '';
-  }
-  html.style.backgroundColor = '';
+  if (stage) stage.style.zIndex = '1';
+  screen.style.backgroundImage = 'none';
+  screen.style.backgroundPosition = 'center center';
+  screen.style.backgroundRepeat = 'no-repeat';
   if (backgroundValue === 'transparent') {
-    body.style.backgroundColor = 'transparent';
-    body.style.backgroundImage = 'none';
+    // Transparent inside the 16:9 program frame; letterbox bars remain black.
+    screen.style.backgroundColor = 'transparent';
   } else if (typeof backgroundValue === 'string' && backgroundValue.startsWith('url')) {
-    body.style.backgroundImage = backgroundValue;
-    body.style.backgroundSize = 'cover';
-    body.style.backgroundPosition = 'center';
-    body.style.backgroundRepeat = 'no-repeat';
-    body.style.backgroundColor = '';
+    screen.style.backgroundImage = backgroundValue;
+    screen.style.backgroundSize = 'cover';
+    screen.style.backgroundColor = '#000000';
   } else {
-    body.style.backgroundColor = backgroundValue || '#004cff';
-    body.style.backgroundImage = 'none';
+    screen.style.backgroundColor = backgroundValue || '#004cff';
   }
   lastOutputBackgroundMode = backgroundValue || 'default';
 }
@@ -546,21 +539,18 @@ if (savedInit) {
   try { renderOutputState(JSON.parse(savedInit)); } catch (err) {}
 }
 
-// Keep the 16:9 composition fitted when the desktop resolution changes or
-// the browser is resized, restored, or moved between differently sized windows.
+// The 1920x1080 design canvas never changes its internal dimensions. A resize
+// only recalculates one uniform scale on the outer screen wrapper; it must not
+// re-render verses, refit text, or restart any verse/background animation.
 let outputViewportResizeFrame = null;
 function scheduleOutputViewportRefit() {
   if (outputViewportResizeFrame !== null) cancelAnimationFrame(outputViewportResizeFrame);
   outputViewportResizeFrame = requestAnimationFrame(() => {
     outputViewportResizeFrame = null;
-    if (lastReceivedData) {
-      renderOutputState(lastReceivedData);
-      return;
-    }
-    const stage = document.getElementById('multiSlotStage');
-    if (stage) fitOutputStageTo16x9(stage, 39, 1);
+    fitOutputScreenToViewport(document.getElementById('outputScreen'));
   });
 }
+fitOutputScreenToViewport(document.getElementById('outputScreen'));
 window.addEventListener('resize', scheduleOutputViewportRefit, { passive: true });
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', scheduleOutputViewportRefit, { passive: true });
