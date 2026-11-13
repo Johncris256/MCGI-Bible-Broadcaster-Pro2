@@ -128,7 +128,7 @@ window.customLayoutSettings = {
 // existing Y framing, spacing, and verse-length font behavior.
 const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customOutputFonts.refSize) || 65));
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 25, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
