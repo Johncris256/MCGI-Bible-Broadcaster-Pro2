@@ -1,5 +1,5 @@
 
-window.OPERATOR_MONITOR_PREVIEW_VERSION = "2026-11-13-16x9-monitor-stable-clean-highlight-v2";
+window.OPERATOR_MONITOR_PREVIEW_VERSION = "2026-11-13-mode-switch-no-preview-reflow-v3";
 window.onerror = function(msg, url, line) {
   console.error("Operator Error: " + msg + " at line " + line);
 };
@@ -24,9 +24,9 @@ let contextTargetSlot = 0;
 
 const slots = [
   { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '1', words: [], highlighted: new Set() },
-  { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '1', words: [], highlighted: new Set() },
   { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '2', words: [], highlighted: new Set() },
-  { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '3', words: [], highlighted: new Set() }
+  { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '3', words: [], highlighted: new Set() },
+  { transId: '001', versionName: 'ANG DATING BIBLIA', bookIndex: 0, chapter: '1', verse: '4', words: [], highlighted: new Set() }
 ];
 
 const DEFAULT_ARIAL = 'Arial, Helvetica, sans-serif';
@@ -353,7 +353,9 @@ async function ensureTranslationLoaded(transId) {
 function getActiveSlot() { return slots[activeSlotIndex]; }
 function getActiveBibleData() { return translationsCache[getActiveSlot().transId] || {}; }
 
-function syncState(forcePreviewAnim) {
+function syncState(forcePreviewAnim, options) {
+  const syncOptions = options || {};
+  const skipOperatorMonitorSync = syncOptions.skipOperatorMonitorSync === true;
   const transparentToggle = document.getElementById('transparentToggle');
   const bgColor = document.getElementById('bgColor');
   let bgToSend = (transparentToggle && transparentToggle.checked) ? 'transparent' : (bgColor ? bgColor.value : '#004cff');
@@ -401,19 +403,26 @@ function syncState(forcePreviewAnim) {
     }
   };
 
-  // Keep the Operator's four 16:9 monitor previews in sync with the exact
-  // background, fonts, verse-box appearance and layout settings sent to Output.
-  syncOperatorSlotMonitors(payload);
+  // Keep the Operator's four 16:9 monitor previews in sync when preview-affecting
+  // content/settings change. A display-mode-only change must NOT re-fit all four
+  // canvases: fitOperatorMonitorVerseText() performs repeated layout measurements
+  // and was causing a visible flash in the Operator workspace on every mode click.
+  if (!skipOperatorMonitorSync) syncOperatorSlotMonitors(payload);
 
   // 1. Ipadala sa WebSocket Server (OBS & Web Clients)
   if (window.liveOperatorSocket && window.liveOperatorSocket.readyState === 1) {
     try { window.liveOperatorSocket.send(JSON.stringify(payload)); } catch(e) {}
   }
 
-  // 2. BroadcastChannel
+  // 2. Reuse one BroadcastChannel instead of allocating a new channel for
+  // every update. This avoids accumulating open channels during live operation.
   try {
-    const bc = new BroadcastChannel('bible_live_stream');
-    bc.postMessage(payload);
+    if (!window.__bibleOperatorStateChannel && typeof BroadcastChannel !== 'undefined') {
+      window.__bibleOperatorStateChannel = new BroadcastChannel('bible_live_stream');
+    }
+    if (window.__bibleOperatorStateChannel) {
+      window.__bibleOperatorStateChannel.postMessage(payload);
+    }
   } catch(e) {}
 
   // 3. LocalStorage
@@ -497,6 +506,20 @@ function updateSlotHeaderMeta(slotIdx) {
 
 function updateWorkspaceUI() {
   for (let i = 0; i < 4; i++) updateSlotHeaderMeta(i);
+}
+
+// Display mode only changes which slots are marked LIVE/STAGING. Keep this
+// update narrow so selecting a layout does not touch monitor DOM or focus UI.
+function updateOutputLiveBadges() {
+  for (let i = 0; i < 4; i++) {
+    const badgeEl = document.getElementById('slotBadge' + i);
+    if (!badgeEl) continue;
+    const isLiveOnOutput = i < outputDisplayMode;
+    const nextClass = 'slot-badge ' + (isLiveOnOutput ? 'live' : 'staging');
+    const nextText = isLiveOnOutput ? '● LIVE' : '● STAGING';
+    if (badgeEl.className !== nextClass) badgeEl.className = nextClass;
+    if (badgeEl.textContent !== nextText) badgeEl.textContent = nextText;
+  }
 }
 
 function focusSlot(slotIdx) {
@@ -976,13 +999,22 @@ document.querySelectorAll('.mini-nav-btn').forEach(btn => {
 });
 
 // OUTPUT DISPLAY MODE PILLS
+// A mode switch updates only the mode controls and LIVE/STAGING badges. The
+// four Operator mini-monitors are intentionally left untouched because their
+// preview geometry/content is independent of the Output split/grid animation.
 document.querySelectorAll('.mode-pill').forEach(pill => {
   pill.addEventListener('click', () => {
-    document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
-    pill.classList.add('active');
-    outputDisplayMode = parseInt(pill.dataset.mode, 10) || 1;
-    updateWorkspaceUI();
-    syncState(true);
+    const nextMode = Math.min(4, Math.max(1, parseInt(pill.dataset.mode, 10) || 1));
+    document.querySelectorAll('.mode-pill').forEach(p => {
+      const shouldBeActive = p === pill;
+      if (p.classList.contains('active') !== shouldBeActive) p.classList.toggle('active', shouldBeActive);
+    });
+    if (nextMode === outputDisplayMode) return;
+
+    outputDisplayMode = nextMode;
+    updateOutputLiveBadges();
+    // Keep the real Output transition, but skip the expensive monitor preview fit.
+    syncState(true, { skipOperatorMonitorSync: true });
   });
 });
 
@@ -2139,29 +2171,23 @@ function initOperatorSocket() {
 initOperatorSocket();
 
 
-// SAFE_OPERATOR_GUARD
+// SAFE_OPERATOR_GUARD: suppress only rapid duplicate clicks on the SAME
+// layout button. Switching directly between different modes is always allowed.
 (function() {
-  let activeModeName = '';
+  let lastMode = null;
   let lastClickTime = 0;
-  // Harangin ang click sa mode buttons bago pa mag-trigger
   document.addEventListener('click', function(e) {
-    const btn = e.target.closest('button');
+    const btn = e.target.closest('.mode-pill[data-mode]');
     if (!btn) return;
-    const txt = (btn.textContent || '').trim().toLowerCase();
-    const isMode = txt.includes('full') || txt.includes('split') || txt.includes('grid');
-    
-    if (isMode) {
-      const now = Date.now();
-      if (activeModeName === txt || (now - lastClickTime < 400)) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        return false;
-      }
-      activeModeName = txt;
-      lastClickTime = now;
-    } else {
-      activeModeName = ''; 
+    const mode = btn.dataset.mode;
+    const now = performance.now();
+    if (mode === lastMode && (now - lastClickTime) < 140) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return false;
     }
+    lastMode = mode;
+    lastClickTime = now;
   }, true);
 })();
 
