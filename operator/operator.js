@@ -1,4 +1,5 @@
 
+window.OPERATOR_MONITOR_PREVIEW_VERSION = "2026-11-13-16x9-monitor-stable-clean-highlight-v2";
 window.onerror = function(msg, url, line) {
   console.error("Operator Error: " + msg + " at line " + line);
 };
@@ -62,6 +63,39 @@ function loadLengthFontSizes() {
   return result;
 }
 window.customLengthFontSizes = loadLengthFontSizes();
+
+// Verse box appearance defaults: full-strength navy fill blended with the
+// live background per tile. Multiply preserves the background's color/detail
+// while keeping the verse box visually strong at 100% opacity.
+const DEFAULT_VERSE_BOX_OPACITY = 100;
+const DEFAULT_VERSE_BOX_BLEND_MODE = 'multiply';
+const VALID_VERSE_BOX_BLEND_MODES = new Set(['default', 'multiply', 'darken']);
+const VERSE_BOX_DEFAULTS_VERSION_KEY = 'bible_verse_box_defaults_version';
+const VERSE_BOX_DEFAULTS_VERSION = '2026-11-12-multiply-100-v1';
+(function migrateVerseBoxDefaultsOnce() {
+  try {
+    if (localStorage.getItem(VERSE_BOX_DEFAULTS_VERSION_KEY) === VERSE_BOX_DEFAULTS_VERSION) return;
+    const savedOpacityRaw = localStorage.getItem('bible_verse_box_opacity');
+    const savedBlendRaw = localStorage.getItem('bible_verse_box_blend_mode');
+    const savedOpacity = savedOpacityRaw === null ? null : Number.parseInt(savedOpacityRaw, 10);
+    const savedBlend = savedBlendRaw || 'default';
+    // Upgrade only the previous factory pair (78% + Default). Preserve any
+    // user-selected opacity or non-default blend mode.
+    if ((savedOpacityRaw === null || savedOpacity === 78) && savedBlend === 'default') {
+      localStorage.setItem('bible_verse_box_opacity', String(DEFAULT_VERSE_BOX_OPACITY));
+      localStorage.setItem('bible_verse_box_blend_mode', DEFAULT_VERSE_BOX_BLEND_MODE);
+    }
+    localStorage.setItem(VERSE_BOX_DEFAULTS_VERSION_KEY, VERSE_BOX_DEFAULTS_VERSION);
+  } catch (e) {}
+})();
+function readVerseBoxOpacitySetting() {
+  const raw = Number.parseInt(localStorage.getItem('bible_verse_box_opacity'), 10);
+  return Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : DEFAULT_VERSE_BOX_OPACITY;
+}
+function readVerseBoxBlendModeSetting() {
+  const raw = localStorage.getItem('bible_verse_box_blend_mode');
+  return VALID_VERSE_BOX_BLEND_MODES.has(raw) ? raw : DEFAULT_VERSE_BOX_BLEND_MODE;
+}
 window.customOutputFonts = {
   ref: localStorage.getItem('bible_font_ref') || DEFAULT_ARIAL,
   refBold: localStorage.getItem('bible_font_ref_bold') !== 'false',
@@ -85,7 +119,9 @@ window.customLayoutSettings = {
   screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
   boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
   maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
-  hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true'
+  hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
+  verseBoxOpacity: readVerseBoxOpacitySetting(),
+  verseBoxBlendMode: readVerseBoxBlendModeSetting()
 };
 
 // Per-layout defaults. New X framing and Title Size controls preserve the
@@ -268,7 +304,9 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
     boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
     maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
-    hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true'
+    hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
+    verseBoxOpacity: readVerseBoxOpacitySetting(),
+    verseBoxBlendMode: readVerseBoxBlendModeSetting()
   };
   window.customModeAdjustments = loadModeAdjustments();
   window.customLengthFontSizes = loadLengthFontSizes();
@@ -356,10 +394,16 @@ function syncState(forcePreviewAnim) {
       screenMargin: window.customLayoutSettings.screenMargin ?? 39,
       maxFontSize: window.customLayoutSettings.maxFontSize || 100,
       hideBoxBg: window.customLayoutSettings.hideBoxBg || false,
+      verseBoxOpacity: window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY,
+      verseBoxBlendMode: window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE,
       modeAdjustments: window.customModeAdjustments,
       lengthFontSizes: window.customLengthFontSizes
     }
   };
+
+  // Keep the Operator's four 16:9 monitor previews in sync with the exact
+  // background, fonts, verse-box appearance and layout settings sent to Output.
+  syncOperatorSlotMonitors(payload);
 
   // 1. Ipadala sa WebSocket Server (OBS & Web Clients)
   if (window.liveOperatorSocket && window.liveOperatorSocket.readyState === 1) {
@@ -461,18 +505,356 @@ function focusSlot(slotIdx) {
   refreshVerseLengthFontIndicator();
 }
 
+function ensureOperatorSlotMonitor(slotIdx) {
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  if (!region) return null;
+  if (region.dataset.monitorReady === 'true') {
+    return {
+      region,
+      frame: region.querySelector('.slot-monitor-frame'),
+      virtual: region.querySelector('.slot-monitor-virtual'),
+      background: region.querySelector('.slot-monitor-background'),
+      stage: region.querySelector('.slot-monitor-stage'),
+      blend: region.querySelector('.slot-monitor-blend'),
+      reference: region.querySelector('.slot-monitor-reference-title'),
+      version: region.querySelector('.slot-monitor-version-subtitle'),
+      verse: region.querySelector('.slot-monitor-verse-text')
+    };
+  }
+
+  region.innerHTML = `
+    <div class="slot-monitor-frame" id="slotMonitorFrame${slotIdx}">
+      <div class="slot-monitor-virtual" id="slotMonitorVirtual${slotIdx}">
+        <div class="slot-monitor-background" id="slotMonitorBackground${slotIdx}" data-bg-type="default"></div>
+        <div class="slot-monitor-blend" id="slotMonitorBlend${slotIdx}"></div>
+        <div class="slot-monitor-stage" id="slotMonitorStage${slotIdx}">
+          <div class="slot-monitor-content">
+            <div class="slot-monitor-reference-container">
+              <div class="slot-monitor-reference-title" id="slotMonitorReference${slotIdx}"></div>
+              <div class="slot-monitor-version-subtitle" id="slotMonitorVersion${slotIdx}"></div>
+            </div>
+            <div class="slot-monitor-verse-container">
+              <div class="slot-monitor-verse-text verse-text" id="slotMonitorVerse${slotIdx}"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  region.dataset.monitorReady = 'true';
+
+  // Scale a fixed 1920x1080 virtual canvas into the available Operator card area.
+  if (window.ResizeObserver) {
+    if (!window.__operatorMonitorResizeObserver) {
+      window.__operatorMonitorResizeObserver = new ResizeObserver(entries => {
+        entries.forEach(entry => {
+          const idx = Number(entry.target.dataset.monitorSlot);
+          if (Number.isInteger(idx) && idx >= 0 && idx < 4) fitOperatorSlotMonitorViewport(idx, entry.contentRect);
+        });
+      });
+    }
+    region.dataset.monitorSlot = String(slotIdx);
+    window.__operatorMonitorResizeObserver.observe(region);
+  } else if (!window.__operatorMonitorFallbackResizeBound) {
+    window.__operatorMonitorFallbackResizeBound = true;
+    window.addEventListener('resize', () => {
+      for (let i = 0; i < 4; i++) fitOperatorSlotMonitorViewport(i);
+    });
+  }
+
+  const result = {
+    region,
+    frame: region.querySelector('.slot-monitor-frame'),
+    virtual: region.querySelector('.slot-monitor-virtual'),
+    background: region.querySelector('.slot-monitor-background'),
+    stage: region.querySelector('.slot-monitor-stage'),
+    blend: region.querySelector('.slot-monitor-blend'),
+    reference: region.querySelector('.slot-monitor-reference-title'),
+    version: region.querySelector('.slot-monitor-version-subtitle'),
+    verse: region.querySelector('.slot-monitor-verse-text')
+  };
+  fitOperatorSlotMonitorViewport(slotIdx);
+  return result;
+}
+
+function syncOperatorMonitorBlendOverlay(slotIdx) {
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  if (!region) return;
+  const virtual = region.querySelector('.slot-monitor-virtual');
+  const stage = region.querySelector('.slot-monitor-stage');
+  const blend = region.querySelector('.slot-monitor-blend');
+  if (!virtual || !stage || !blend) return;
+
+  const virtualRect = virtual.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const scaleX = virtualRect.width / 1920;
+  const scaleY = virtualRect.height / 1080;
+  if (!scaleX || !scaleY || !stageRect.width || !stageRect.height) {
+    blend.style.display = 'none';
+    return;
+  }
+  blend.style.left = ((stageRect.left - virtualRect.left) / scaleX) + 'px';
+  blend.style.top = ((stageRect.top - virtualRect.top) / scaleY) + 'px';
+  blend.style.width = (stageRect.width / scaleX) + 'px';
+  blend.style.height = (stageRect.height / scaleY) + 'px';
+  blend.style.borderRadius = getComputedStyle(stage).borderRadius;
+}
+
+function fitOperatorSlotMonitorViewport(slotIdx, observedContentRect) {
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  if (!region) return;
+  const frame = region.querySelector('.slot-monitor-frame');
+  const virtual = region.querySelector('.slot-monitor-virtual');
+  if (!frame || !virtual) return;
+
+  // ResizeObserver.contentRect is the true inner content area (padding excluded).
+  // The fallback explicitly subtracts the 8px monitor padding on each side.
+  const regionStyle = getComputedStyle(region);
+  const horizontalPadding = (parseFloat(regionStyle.paddingLeft) || 0) + (parseFloat(regionStyle.paddingRight) || 0);
+  const verticalPadding = (parseFloat(regionStyle.paddingTop) || 0) + (parseFloat(regionStyle.paddingBottom) || 0);
+  const availableWidth = Math.max(1, Number(observedContentRect?.width) || (region.clientWidth - horizontalPadding));
+  const availableHeight = Math.max(1, Number(observedContentRect?.height) || (region.clientHeight - verticalPadding));
+  if (availableWidth < 80 || availableHeight < 45) return;
+
+  // Every Operator monitor is an independent 16:9 preview. Its physical size
+  // changes only when its own card is resized, never when Output changes layout.
+  const scale = Math.max(0.01, Math.min(availableWidth / 1920, availableHeight / 1080));
+  const width = 1920 * scale;
+  const height = 1080 * scale;
+  const nextWidth = width.toFixed(2) + 'px';
+  const nextHeight = height.toFixed(2) + 'px';
+  const nextTransform = 'scale(' + scale.toFixed(6) + ')';
+  if (frame.style.width !== nextWidth) frame.style.width = nextWidth;
+  if (frame.style.height !== nextHeight) frame.style.height = nextHeight;
+  if (virtual.style.transform !== nextTransform) virtual.style.transform = nextTransform;
+  syncOperatorMonitorBlendOverlay(slotIdx);
+}
+
+function setOperatorMonitorBackground(element, bgValue) {
+  if (!element) return;
+  const value = (typeof bgValue === 'string' && bgValue) ? bgValue : "url('/images/Bible%20BG.jpg')";
+  element.style.backgroundImage = 'none';
+  element.style.backgroundColor = '#0757b8';
+  element.dataset.bgType = 'default';
+  element.removeAttribute('data-bg-selection');
+
+  if (value === 'transparent') {
+    element.dataset.bgType = 'transparent';
+    return;
+  }
+  if (value.startsWith('animated:')) {
+    const selection = value.slice('animated:'.length) || 'blue-wave';
+    element.dataset.bgType = 'animated';
+    element.dataset.bgSelection = selection;
+    return;
+  }
+  if (/^url\(/i.test(value)) {
+    element.style.backgroundImage = value;
+    element.style.backgroundColor = '#071226';
+    element.style.backgroundSize = 'cover';
+    element.style.backgroundPosition = 'center';
+    element.style.backgroundRepeat = 'no-repeat';
+    return;
+  }
+  element.style.backgroundColor = value;
+}
+
+function getOperatorMonitorLengthFontSize(textValue) {
+  const length = Array.from(String(textValue || '').trim()).length;
+  const ranges = [
+    [1,50],[51,100],[101,150],[151,200],[201,250],[251,300],[301,350],
+    [351,400],[401,450],[451,500],[501,550],[551,600],[601,650],[651,999]
+  ];
+  const defaults = DEFAULT_LENGTH_FONT_SIZES;
+  const values = Array.isArray(window.customLengthFontSizes) ? window.customLengthFontSizes : defaults;
+  for (let i = 0; i < ranges.length; i++) {
+    const [min, max] = ranges[i];
+    if (length >= min && (length <= max || i === ranges.length - 1)) {
+      const n = Number(values[i]);
+      return Number.isFinite(n) ? Math.min(100, Math.max(14, n)) : defaults[i];
+    }
+  }
+  return defaults[defaults.length - 1];
+}
+
+function applyOperatorMonitorHighlightStyle() {
+  const mode = localStorage.getItem('hl_preset_mode') || 'karaoke';
+  const root = document.documentElement;
+  root.dataset.opHlMode = mode === 'box' ? 'box' : 'karaoke';
+  const fontColor = localStorage.getItem('hl_font_color') || '#ffd700';
+  const boxColor = localStorage.getItem('hl_box_color') || '#ffd700';
+  const opacityRaw = Number.parseFloat(localStorage.getItem('hl_box_opacity') || '0.85');
+  const opacity = Number.isFinite(opacityRaw) ? Math.min(1, Math.max(0, opacityRaw)) : .85;
+  const radiusRaw = Number.parseFloat(localStorage.getItem('hl_corner_radius') || '6');
+  const radius = Number.isFinite(radiusRaw) ? Math.min(30, Math.max(0, radiusRaw)) : 6;
+  const hex = String(boxColor).replace('#', '');
+  let rgba = 'rgba(255,215,0,' + opacity + ')';
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    const n = parseInt(hex, 16);
+    rgba = 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + opacity + ')';
+  }
+  root.style.setProperty('--op-hl-font-color', fontColor);
+  root.style.setProperty('--op-hl-box-color', rgba);
+  root.style.setProperty('--op-hl-corner-radius', radius + 'px');
+}
+
+function fitOperatorMonitorVerseText(slotIdx, settings, fonts, modeSettings) {
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  const text = region && region.querySelector('.slot-monitor-verse-text');
+  const verseContainer = region && region.querySelector('.slot-monitor-verse-container');
+  if (!text || !verseContainer) return;
+
+  const fontSettings = fonts || window.customOutputFonts || {};
+  const mode = modeSettings || (window.customModeAdjustments && window.customModeAdjustments[1]) || {};
+  const rawMax = Number.parseInt(settings && settings.maxFontSize, 10);
+  const requestedMax = Math.min(100, Math.max(28, Number.isFinite(rawMax) ? rawMax : 100));
+  const lengthBasedMax = getOperatorMonitorLengthFontSize(text.textContent);
+  const effectiveMax = Math.max(14, Math.min(requestedMax, lengthBasedMax));
+  const letterSpacing = Number.isFinite(Number(mode.letterSpacing)) ? Math.min(10, Math.max(-2, Number(mode.letterSpacing))) : 0;
+  const lineHeight = Number.isFinite(Number(mode.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(mode.lineSpacing))) : 1.55;
+  text.style.letterSpacing = letterSpacing + 'px';
+  text.style.lineHeight = String(lineHeight);
+  text.style.width = '100%';
+  text.style.maxHeight = '100%';
+  text.style.overflow = 'hidden';
+
+  const usableHeight = verseContainer.clientHeight;
+  const usableWidth = verseContainer.clientWidth;
+  let low = 14;
+  let high = Math.max(14, Math.floor(effectiveMax));
+  let best = 14;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    text.style.fontSize = mid + 'px';
+    if (text.scrollHeight <= usableHeight + 1 && text.scrollWidth <= usableWidth + 1) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  text.style.fontSize = best + 'px';
+}
+
+function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
+  const monitor = ensureOperatorSlotMonitor(slotIdx);
+  if (!monitor) return;
+  const slot = slots[slotIdx];
+  const data = payload || {};
+  const settings = data.settings || window.customLayoutSettings || {};
+  const fonts = data.fonts || window.customOutputFonts || {};
+  const modes = settings.modeAdjustments || window.customModeAdjustments || {};
+  // Output keeps the 1 Full composition typography/padding as the master canvas
+  // for every split layout; the mini-monitor follows that same native 16:9 frame.
+  const composition = modes[1] || {};
+  const marginRaw = Number.parseFloat(settings.screenMargin ?? window.customLayoutSettings?.screenMargin ?? 39);
+  const margin = Math.min(120, Math.max(0, Number.isFinite(marginRaw) ? marginRaw : 39));
+  const availableWidth = Math.max(1, 1920 - margin * 2);
+  const availableHeight = Math.max(1, 1080 - margin * 2);
+  const stageWidth = Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
+  const stageHeight = stageWidth * 9 / 16;
+  const stage = monitor.stage;
+  if (!stage) return;
+  stage.style.width = stageWidth + 'px';
+  stage.style.height = stageHeight + 'px';
+  stage.style.left = ((1920 - stageWidth) / 2) + 'px';
+  stage.style.top = ((1080 - stageHeight) / 2) + 'px';
+
+  // Keep every mini-monitor as a stable, independent 16:9 slot preview.
+  // The 2/3/4-layout grid transform belongs to the Output stage as a whole;
+  // applying it to each separate mini-monitor made all four previews jump,
+  // crop or resize whenever the Operator changed the live Output layout.
+  // Use the shared 1 Full composition framing for each isolated slot monitor.
+  const framing = modes[1] || {};
+  const zoomX = Math.min(1.5, Math.max(.5, (Number.isFinite(Number(framing.zoomX)) ? Number(framing.zoomX) : 100) / 100));
+  const zoomY = Math.min(1.5, Math.max(.5, (Number.isFinite(Number(framing.zoomY)) ? Number(framing.zoomY) : 100) / 100));
+  const panX = Math.min(400, Math.max(-400, Number.isFinite(Number(framing.panX)) ? Number(framing.panX) : 0));
+  const panY = Math.min(400, Math.max(-400, Number.isFinite(Number(framing.panY)) ? Number(framing.panY) : 0));
+  stage.style.transformOrigin = '50% 0%';
+  stage.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0) scaleX(' + zoomX + ') scaleY(' + zoomY + ')';
+
+  const padRaw = Number.parseInt(composition.boxPadding ?? settings.boxPadding ?? 55, 10);
+  const pad = Math.min(90, Math.max(10, Number.isFinite(padRaw) ? padRaw : 55));
+  const gapRaw = Number.parseInt(composition.topGap ?? settings.topGap ?? 25, 10);
+  const topGap = Math.min(120, Math.max(0, Number.isFinite(gapRaw) ? gapRaw : 25));
+  const content = stage.querySelector('.slot-monitor-content');
+  if (content) content.style.padding = pad + 'px ' + (pad + 8) + 'px';
+  const referenceContainer = stage.querySelector('.slot-monitor-reference-container');
+  if (referenceContainer) referenceContainer.style.marginBottom = topGap + 'px';
+
+  const hidden = !!settings.hideBoxBg;
+  const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 100, 10);
+  const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 100)) / 100;
+  const requestedMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'multiply';
+  const fill = requestedMode === 'multiply' ? '#8499B8' : (requestedMode === 'darken' ? '#243B5E' : '#0A193C');
+  if (monitor.blend) {
+    monitor.blend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
+    monitor.blend.style.backgroundColor = fill;
+    monitor.blend.style.opacity = String(opacity);
+    monitor.blend.style.mixBlendMode = requestedMode === 'default' ? 'normal' : requestedMode;
+  }
+  if (monitor.blend) {
+    monitor.blend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
+  }
+  stage.style.border = hidden ? 'none' : '2px solid #A78336';
+  stage.style.borderRadius = hidden ? '0px' : '64px';
+  stage.style.boxShadow = hidden ? 'none' : '0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20)';
+
+  setOperatorMonitorBackground(monitor.background, bgValue || data.bg || "url('/images/Bible%20BG.jpg')");
+  if (monitor.reference) {
+    monitor.reference.textContent = slot.reference || 'GENESIS 1:1';
+    monitor.reference.style.fontFamily = fonts.ref || DEFAULT_ARIAL;
+    monitor.reference.style.fontWeight = fonts.refBold ? '700' : '400';
+    monitor.reference.style.fontStyle = fonts.refItalic ? 'italic' : 'normal';
+    monitor.reference.style.fontSize = (Number.parseInt(fonts.refSize, 10) || Number.parseInt(composition.titleSize, 10) || 65) + 'px';
+    monitor.reference.style.textShadow = fonts.refShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+  }
+  if (monitor.version) {
+    monitor.version.textContent = slot.versionName || 'ANG DATING BIBLIA';
+    monitor.version.style.fontFamily = fonts.version || DEFAULT_ARIAL;
+    monitor.version.style.fontWeight = fonts.verBold ? '700' : '400';
+    monitor.version.style.fontStyle = fonts.verItalic ? 'italic' : 'normal';
+    monitor.version.style.fontSize = (Number.parseInt(fonts.verSize, 10) || 60) + 'px';
+    monitor.version.style.color = '#FFFF00';
+    monitor.version.style.textShadow = fonts.verShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+  }
+  if (monitor.verse) {
+    monitor.verse.style.fontFamily = fonts.content || DEFAULT_ARIAL;
+    monitor.verse.style.fontWeight = fonts.contentBold ? '700' : '400';
+    monitor.verse.style.fontStyle = fonts.contentItalic ? 'italic' : 'normal';
+    monitor.verse.style.color = '#FFFFFF';
+    monitor.verse.querySelectorAll('.word-span').forEach(word => {
+      word.style.textShadow = fonts.contentShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+    });
+  }
+  applyOperatorMonitorHighlightStyle();
+  fitOperatorMonitorVerseText(slotIdx, settings, fonts, composition);
+  // Frame geometry is ResizeObserver-driven; do not rewrite frame transforms
+  // on every verse/highlight/layout state packet.
+  syncOperatorMonitorBlendOverlay(slotIdx);
+}
+
+function syncOperatorSlotMonitors(payload) {
+  const data = payload || {};
+  const bg = data.bg || (animatedBgActive ? 'animated:' + selectedAnimatedBg : (currentCustomBg || '#004cff'));
+  for (let i = 0; i < 4; i++) syncOperatorSlotMonitor(i, bg, data);
+}
+
 function renderSlotCanvas(slotIdx) {
-  const canvas = document.getElementById('slotCanvas' + slotIdx);
-  if (!canvas) return;
-  canvas.innerHTML = '';
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  if (!region) return;
+  const monitor = ensureOperatorSlotMonitor(slotIdx);
+  if (!monitor || !monitor.verse) return;
+  const textCanvas = monitor.verse;
+  textCanvas.innerHTML = '';
   const s = slots[slotIdx];
 
   s.words.forEach((word, wIdx) => {
     const span = document.createElement('span');
     span.textContent = word;
-    span.classList.add('word-span');
+    span.classList.add('word-span', 'ndi-word');
     span.dataset.index = wIdx;
-    if (s.highlighted.has(wIdx)) span.classList.add('highlighted');
+    span.dataset.idx = wIdx;
+    if (s.highlighted.has(wIdx)) span.classList.add('highlighted', 'active-highlight');
 
     span.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
@@ -489,33 +871,37 @@ function renderSlotCanvas(slotIdx) {
       if (isMouseDown && dragSlotIdx === slotIdx) applySlotDragRange(slotIdx, wIdx);
     });
 
-    canvas.appendChild(span);
+    textCanvas.appendChild(span);
 
     if (wIdx < s.words.length - 1 && s.hasSpaces) {
       const space = document.createElement('span');
       space.textContent = ' ';
-      space.classList.add('space-span');
+      space.classList.add('space-span', 'ndi-space');
       space.dataset.spaceAfter = wIdx;
-      if (s.highlighted.has(wIdx) && s.highlighted.has(wIdx + 1)) space.classList.add('highlighted');
       space.addEventListener('mouseenter', () => {
         if (isMouseDown && dragSlotIdx === slotIdx) applySlotDragRange(slotIdx, wIdx);
       });
-      canvas.appendChild(space);
+      textCanvas.appendChild(space);
     }
   });
 }
 
 function updateSlotVisuals(slotIdx) {
-  const canvas = document.getElementById('slotCanvas' + slotIdx);
-  if (!canvas) return;
+  const region = document.getElementById('slotCanvas' + slotIdx);
+  if (!region) return;
+  const textCanvas = region.querySelector('.slot-monitor-verse-text');
+  if (!textCanvas) return;
   const s = slots[slotIdx];
   s.words.forEach((_, idx) => {
-    const wordSpan = canvas.querySelector('[data-index="' + idx + '"]');
-    if (wordSpan) wordSpan.classList.toggle('highlighted', s.highlighted.has(idx));
-    const spaceSpan = canvas.querySelector('[data-space-after="' + idx + '"]');
+    const wordSpan = textCanvas.querySelector('[data-index="' + idx + '"]');
+    if (wordSpan) {
+      wordSpan.classList.toggle('highlighted', s.highlighted.has(idx));
+      wordSpan.classList.toggle('active-highlight', s.highlighted.has(idx));
+    }
+    const spaceSpan = textCanvas.querySelector('[data-space-after="' + idx + '"]');
     if (spaceSpan) {
-      const bridge = s.highlighted.has(idx) && s.highlighted.has(idx + 1);
-      spaceSpan.classList.toggle('highlighted', bridge);
+      // Spaces remain unpainted; only the selected word glyphs receive a box.
+      spaceSpan.classList.remove('highlighted', 'active-highlight');
     }
   });
 }
@@ -1453,12 +1839,15 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutTopGapRange').value = window.customLayoutSettings.topGap;
     document.getElementById('layoutBoxPaddingRange').value = window.customLayoutSettings.boxPadding;
     document.getElementById('layoutMaxFontRange').value = window.customLayoutSettings.maxFontSize;
+    document.getElementById('layoutVerseBoxOpacityRange').value = window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY;
+    document.getElementById('layoutVerseBoxBlendSelect').value = window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutHideBoxChk').checked = window.customLayoutSettings.hideBoxBg;
 
     document.getElementById('layoutMarginVal').textContent = window.customLayoutSettings.screenMargin + 'px';
     document.getElementById('layoutTopGapVal').textContent = window.customLayoutSettings.topGap + 'px';
     document.getElementById('layoutPaddingVal').textContent = window.customLayoutSettings.boxPadding + 'px';
     document.getElementById('layoutMaxFontVal').textContent = window.customLayoutSettings.maxFontSize + 'px';
+    document.getElementById('layoutVerseBoxOpacityVal').textContent = (window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY) + '%';
 
     layoutModal.classList.add('open');
   });
@@ -1469,6 +1858,9 @@ if (layoutBtn && layoutModal) {
     const g = document.getElementById('layoutTopGapRange').value;
     const p = document.getElementById('layoutBoxPaddingRange').value;
     const f = document.getElementById('layoutMaxFontRange').value;
+    const opacity = parseInt(document.getElementById('layoutVerseBoxOpacityRange').value, 10);
+    const blendModeRaw = document.getElementById('layoutVerseBoxBlendSelect').value;
+    const blendMode = VALID_VERSE_BOX_BLEND_MODES.has(blendModeRaw) ? blendModeRaw : DEFAULT_VERSE_BOX_BLEND_MODE;
     const h = document.getElementById('layoutHideBoxChk').checked;
 
     window.customLayoutSettings = {
@@ -1476,13 +1868,16 @@ if (layoutBtn && layoutModal) {
       topGap: parseInt(g, 10),
       boxPadding: parseInt(p, 10),
       maxFontSize: parseInt(f, 10),
-      hideBoxBg: h
+      hideBoxBg: h,
+      verseBoxOpacity: Number.isFinite(opacity) ? Math.min(100, Math.max(0, opacity)) : DEFAULT_VERSE_BOX_OPACITY,
+      verseBoxBlendMode: blendMode
     };
 
     document.getElementById('layoutMarginVal').textContent = m + 'px';
     document.getElementById('layoutTopGapVal').textContent = g + 'px';
     document.getElementById('layoutPaddingVal').textContent = p + 'px';
     document.getElementById('layoutMaxFontVal').textContent = f + 'px';
+    document.getElementById('layoutVerseBoxOpacityVal').textContent = window.customLayoutSettings.verseBoxOpacity + '%';
 
     const mainHideToggle = document.getElementById('hideVerseBoxToggle');
     if (mainHideToggle) mainHideToggle.checked = h;
@@ -1492,11 +1887,13 @@ if (layoutBtn && layoutModal) {
     localStorage.setItem('bible_box_padding', String(window.customLayoutSettings.boxPadding));
     localStorage.setItem('bible_max_font_size', String(window.customLayoutSettings.maxFontSize));
     localStorage.setItem('bible_hide_box_bg', String(window.customLayoutSettings.hideBoxBg));
+    localStorage.setItem('bible_verse_box_opacity', String(window.customLayoutSettings.verseBoxOpacity));
+    localStorage.setItem('bible_verse_box_blend_mode', window.customLayoutSettings.verseBoxBlendMode);
     syncState();
   }
 
-  layoutModal.querySelectorAll('input').forEach(el => el.addEventListener('input', syncLayoutLive));
-  layoutModal.querySelectorAll('input[type="checkbox"]').forEach(el => el.addEventListener('change', syncLayoutLive));
+  layoutModal.querySelectorAll('input[type="range"]').forEach(el => el.addEventListener('input', syncLayoutLive));
+  layoutModal.querySelectorAll('input[type="checkbox"], select').forEach(el => el.addEventListener('change', syncLayoutLive));
   document.getElementById('layoutFullBleedBtn').addEventListener('click', () => {
     document.getElementById('layoutScreenMarginRange').value = 0;
     syncLayoutLive();
@@ -1506,6 +1903,8 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutTopGapRange').value = 25;
     document.getElementById('layoutBoxPaddingRange').value = 70;
     document.getElementById('layoutMaxFontRange').value = 100;
+    document.getElementById('layoutVerseBoxOpacityRange').value = DEFAULT_VERSE_BOX_OPACITY;
+    document.getElementById('layoutVerseBoxBlendSelect').value = DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutHideBoxChk').checked = false;
     syncLayoutLive();
   });
