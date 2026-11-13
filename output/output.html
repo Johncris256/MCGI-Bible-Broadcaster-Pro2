@@ -407,7 +407,7 @@
       --verse-anim-duration: 0.55s;
       --highlight-anim-duration: 0.35s;
       --highlight-bg-color: rgba(250, 204, 21, 0.5);
-      --title-verse-gap: 25px;
+      --title-verse-gap: 20px;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -893,8 +893,75 @@
   .output-viewer-translation-toast.visible { opacity: 1; transform: translate(-50%, 0); }
   .output-viewer-translation-toast.error { border-color: rgba(248, 113, 113, .7); }
 </style>
+
+<style id="OUTPUT_FIXED_1920X1080_SCREEN_V1">
+  /* The browser viewport is only a viewing window. All Output artwork lives
+     inside this immutable 1920x1080 (16:9) screen and scales as one unit. */
+  html { display: block !important; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000000 !important;
+  }
+  body {
+    display: block !important;
+    position: relative !important;
+  }
+  #outputScreen {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1920px;
+    height: 1080px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    transform: translate3d(-50%, -50%, 0) scale(var(--output-screen-scale, 1));
+    transform-origin: center center;
+    background-color: #004cff;
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    isolation: isolate;
+  }
+  #outputScreen > #multiSlotStage {
+    position: absolute !important;
+    left: 39px;
+    top: 39px;
+    width: 1842px;
+    height: 1002px;
+    max-width: none;
+    max-height: none;
+    margin: 0 !important;
+    flex: none !important;
+  }
+  #outputScreen > #outputAnimatedBackgroundLayer {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 1920px !important;
+    height: 1080px !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+</style>
+
+<script id="OUTPUT_16X9_EARLY_SCREEN_SCALE">
+  // Set the contain-fit before the first paint to avoid a brief full-size crop
+  // when Output opens in a portrait or narrow browser window.
+  (function() {
+    const scale = Math.max(0.0001, Math.min((window.innerWidth || 1920) / 1920, (window.innerHeight || 1080) / 1080));
+    document.documentElement.style.setProperty('--output-screen-scale', String(scale));
+  })();
+</script>
+
 </head>
 <body>
+  <div id="outputScreen" aria-label="1920 by 1080 Bible Output Screen">
   <div id="multiSlotStage" class="mode-1">
     <div class="render-box" data-slot-box="0">
       <div class="slot-canvas">
@@ -912,11 +979,12 @@
     </div>
     </div>
   </div>
+  </div> <!-- /#outputScreen: fixed 1920x1080 composition -->
   <script src="output-animated-backgrounds.js?v=20261108-animated-bg-options-v2"></script>
-  <script src="output.js?v=20261112-bible-translation-yellow-v1"></script>
+  <script src="output.js?v=20261113-fixed-screen-1920x1080-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
-<script src="output-layout-transition.js?v=20261107-cubic-directional-v7"></script>
+<script src="output-layout-transition.js?v=20261113-fixed-screen-1920x1080-v1"></script>
 <script id="OUTPUT_OPERATOR_HIGHLIGHT_AUTHORITY_V1">
   (function() {
     const originalRender = window.renderOutputState;
