@@ -94,7 +94,7 @@
 </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Slot Operator (Slave Controller)</title>
+  <title>Slot Operator (Slave Controller) — Output Preview v1</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -322,6 +322,264 @@
       border-radius: 4px;
     }
 
+    /* OUTPUT-MATCHED SLOT MONITOR: fixed 1920x1080 virtual canvas, scaled uniformly. */
+    .slave-preview-heading {
+      color: #7dd3fc;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .05em;
+    }
+    .slave-preview-heading span { color: #94a3b8; font-weight: 700; }
+    .slave-preview-status {
+      font-size: 11px;
+      font-weight: 900;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: #334155;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+    .slave-preview-viewport {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 10px;
+      background: #090f1b;
+    }
+    .slot-monitor-frame {
+      position: relative;
+      flex: 0 0 auto;
+      width: 16px;
+      height: 9px;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: #071226;
+      border: 1px solid rgba(148,163,184,.48);
+      border-radius: 4px;
+      box-shadow: 0 5px 16px rgba(0,0,0,.38), 0 0 0 1px rgba(0,0,0,.35);
+      isolation: isolate;
+    }
+    .slot-monitor-virtual {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      transform-origin: top left;
+      background: #0757b8;
+    }
+    .slot-monitor-background {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-color: #0757b8;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      overflow: hidden;
+    }
+    .slot-monitor-background[data-bg-type="transparent"] {
+      background-color: #111827;
+      background-image:
+        linear-gradient(45deg, rgba(148,163,184,.12) 25%, transparent 25%, transparent 75%, rgba(148,163,184,.12) 75%),
+        linear-gradient(45deg, rgba(148,163,184,.12) 25%, transparent 25%, transparent 75%, rgba(148,163,184,.12) 75%);
+      background-position: 0 0, 18px 18px;
+      background-size: 36px 36px;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"] {
+      background-image:
+        radial-gradient(ellipse at 74% 15%, rgba(117,211,255,.42), transparent 34%),
+        radial-gradient(ellipse at 17% 82%, rgba(0,22,92,.50), transparent 38%),
+        linear-gradient(45deg, #06368f 0%, #0757b8 35%, #167fdb 70%, #38a9ff 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"]::before,
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"]::before {
+      content: "";
+      position: absolute;
+      left: -5%; right: -5%; bottom: -19%; height: 56%;
+      border-radius: 48% 52% 0 0 / 25% 28% 0 0;
+      background: linear-gradient(155deg, rgba(18,143,231,.82), rgba(4,54,135,.93));
+      transform: rotate(-4deg);
+      animation: slotPreviewWaveFront 12s ease-in-out infinite alternate;
+      box-shadow: 0 -22px 55px rgba(70,190,255,.16);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"]::after,
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"]::after {
+      content: "";
+      position: absolute;
+      left: -5%; right: -5%; bottom: -25%; height: 43%;
+      border-radius: 50% 50% 0 0 / 30% 34% 0 0;
+      background: rgba(2,40,112,.58);
+      transform: rotate(3deg);
+      animation: slotPreviewWaveBack 15s ease-in-out infinite alternate;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"] {
+      background-image:
+        radial-gradient(ellipse at 72% 12%, rgba(0,168,232,.45), transparent 42%),
+        radial-gradient(ellipse at 0% 70%, rgba(6,60,156,.50), transparent 46%),
+        linear-gradient(120deg, #104d9a 0%, #0864b2 36%, #0786c9 72%, #0871c6 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"] {
+      background-image:
+        radial-gradient(ellipse at 70% 10%, rgba(55,156,225,.35), transparent 38%),
+        linear-gradient(140deg, #1d7acb 0%, #105a9f 54%, #073e7c 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .82;
+      background:
+        linear-gradient(180deg, transparent 0 10%, rgba(3,33,84,.18) 10% 11%, transparent 11% 100%),
+        repeating-linear-gradient(90deg, transparent 0 12%, rgba(255,196,0,.82) 12% 12.4%, transparent 12.4% 24%);
+      clip-path: polygon(0 0,100% 0,100% 42%,92% 58%,84% 42%,76% 58%,68% 42%,60% 58%,52% 42%,44% 58%,36% 42%,28% 58%,20% 42%,12% 58%,4% 42%,0 48%);
+      animation: slotPreviewPennant 7s ease-in-out infinite alternate;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"]::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0; height: 30%;
+      background: linear-gradient(180deg, transparent, rgba(2,29,78,.55));
+    }
+    @keyframes slotPreviewWaveFront {
+      0% { transform: translateX(-1.5%) translateY(0) rotate(-4deg); }
+      100% { transform: translateX(1.5%) translateY(-1.2%) rotate(-2.5deg); }
+    }
+    @keyframes slotPreviewWaveBack {
+      0% { transform: translateX(1.2%) translateY(0) rotate(3deg); }
+      100% { transform: translateX(-1.2%) translateY(-1%) rotate(1.5deg); }
+    }
+    @keyframes slotPreviewPennant {
+      0% { transform: translateX(-.6%) skewY(-.3deg); }
+      100% { transform: translateX(.6%) skewY(.3deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slot-monitor-background::before,
+      .slot-monitor-background::after { animation: none !important; }
+    }
+    .slot-monitor-stage {
+      position: absolute;
+      z-index: 2;
+      left: 69.5px;
+      top: 39px;
+      width: 1781px;
+      height: 1002px;
+      overflow: hidden;
+      border: 2px solid #A78336;
+      border-radius: 64px;
+      background: transparent;
+      box-shadow: 0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20);
+      transform-origin: 50% 0%;
+    }
+    .slot-monitor-blend {
+      position: absolute;
+      left: 69.5px;
+      top: 39px;
+      width: 1781px;
+      height: 1002px;
+      z-index: 1;
+      background: #8499B8;
+      opacity: 1;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+      border-radius: 64px;
+    }
+    .slot-monitor-content {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 55px 63px;
+      color: #ffffff;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .slot-monitor-reference-container {
+      flex: 0 0 auto;
+      text-align: left;
+      margin-left: 3px;
+      margin-bottom: 25px;
+    }
+    .slot-monitor-reference-title {
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 65px;
+      line-height: 1.15;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+      white-space: normal;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .slot-monitor-version-subtitle {
+      color: #FFFF00;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 60px;
+      line-height: 1.15;
+      font-weight: 400;
+      font-style: italic;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-top: 2px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+    }
+    .slot-monitor-verse-container {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      text-align: center;
+    }
+    .slot-monitor-verse-text {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 46px;
+      line-height: 1.2;
+      text-align: center;
+      word-break: break-word;
+      pointer-events: none;
+      user-select: none;
+    }
+    .slot-monitor-verse-text .word-span,
+    .slot-monitor-verse-text .space-span {
+      display: inline;
+      padding: 2px 0;
+      border-radius: 3px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+    }
+    .slot-monitor-verse-text .word-span.highlighted {
+      background: rgba(250,204,21,.90) !important;
+      color: #0f172a !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+      border-radius: 3px !important;
+    }
+    .slot-monitor-verse-text .space-span {
+      background: transparent !important;
+      color: inherit !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+    }
+
+
     /* Verse History Sidebar */
     .history-panel {
       background: #0d1322;
@@ -479,6 +737,7 @@
     .ctx-sub-option:hover { background: #1e293b; color: #38bdf8; }
     .ctx-sub-option.active-trans { color: #facc15; font-weight: 700; background: rgba(250, 204, 21, 0.08); }
   </style>
+<meta name="slot-operator-output-preview" content="2026-11-13-output-preview-v1">
 </head>
 <body>
   <!-- LOGIN GATE MODAL -->
@@ -539,16 +798,27 @@
   <main class="slave-workspace" id="slaveWorkspace">
     <div class="slave-card" id="slaveCardBox">
       <div class="slave-card-header">
-        <div>
-          <div class="slave-ref-title" id="dispRef" title="Click para mag-type ng verse o Right-Click para sa menu">GENESIS 1:1</div>
-          <div class="slave-ver-sub" id="dispVer">ANG DATING BIBLIA</div>
-        </div>
-        <div id="liveStatusBadge" style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:6px; background:#334155; color:#cbd5e1;">
-          CONNECTED TO OPERATOR
-        </div>
+        <div class="slave-preview-heading">OUTPUT PREVIEW <span>• 16:9 SLOT MONITOR</span></div>
+        <div id="liveStatusBadge" class="slave-preview-status">WAITING FOR OUTPUT DATA</div>
       </div>
-      <div class="slave-verse-body" id="dispBody">
-        Naglo-load ng Biblia...
+      <div class="slave-preview-viewport" id="slavePreviewViewport">
+        <div class="slot-monitor-frame" id="slotMonitorFrame">
+          <div class="slot-monitor-virtual" id="slotMonitorVirtual">
+            <div class="slot-monitor-background" id="slotMonitorBackground" data-bg-type="default"></div>
+            <div class="slot-monitor-blend" id="slotMonitorBlend"></div>
+            <div class="slot-monitor-stage" id="slotMonitorStage">
+              <div class="slot-monitor-content">
+                <div class="slot-monitor-reference-container">
+                  <div class="slot-monitor-reference-title" id="dispRef" title="Click para mag-type ng verse o Right-Click para sa menu">GENESIS 1:1</div>
+                  <div class="slot-monitor-version-subtitle" id="dispVer">ANG DATING BIBLIA</div>
+                </div>
+                <div class="slot-monitor-verse-container" id="slotMonitorVerseContainer">
+                  <div class="slot-monitor-verse-text" id="dispBody">Naglo-load ng Biblia...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -740,6 +1010,238 @@
     const dispVer = document.getElementById('dispVer');
     const dispBody = document.getElementById('dispBody');
     const liveStatusBadge = document.getElementById('liveStatusBadge');
+    const slavePreviewViewport = document.getElementById('slavePreviewViewport');
+    const slotMonitorFrame = document.getElementById('slotMonitorFrame');
+    const slotMonitorVirtual = document.getElementById('slotMonitorVirtual');
+    const slotMonitorBackground = document.getElementById('slotMonitorBackground');
+    const slotMonitorBlend = document.getElementById('slotMonitorBlend');
+    const slotMonitorStage = document.getElementById('slotMonitorStage');
+    const slotMonitorVerseContainer = document.getElementById('slotMonitorVerseContainer');
+    let latestOutputPayload = null;
+    let slotPreviewResizeObserver = null;
+    const SLOT_PREVIEW_DEFAULT_LENGTH_FONTS = [100, 88, 88, 79, 74, 70, 67, 66, 60, 58, 58, 27, 27, 24];
+
+    function fitSlotOperatorPreviewFrame() {
+      if (!slavePreviewViewport || !slotMonitorFrame || !slotMonitorVirtual) return;
+      const style = getComputedStyle(slavePreviewViewport);
+      const availableWidth = Math.max(1, slavePreviewViewport.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0));
+      const availableHeight = Math.max(1, slavePreviewViewport.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0));
+      if (availableWidth < 80 || availableHeight < 45) return;
+      const scale = Math.max(.01, Math.min(availableWidth / 1920, availableHeight / 1080));
+      slotMonitorFrame.style.width = (1920 * scale).toFixed(2) + 'px';
+      slotMonitorFrame.style.height = (1080 * scale).toFixed(2) + 'px';
+      slotMonitorVirtual.style.transform = 'scale(' + scale.toFixed(6) + ')';
+      syncSlotOperatorBlendOverlay();
+      fitSlotOperatorPreviewText();
+    }
+
+    function syncSlotOperatorBlendOverlay() {
+      if (!slotMonitorVirtual || !slotMonitorStage || !slotMonitorBlend) return;
+      const virtualRect = slotMonitorVirtual.getBoundingClientRect();
+      const stageRect = slotMonitorStage.getBoundingClientRect();
+      const scaleX = virtualRect.width / 1920;
+      const scaleY = virtualRect.height / 1080;
+      if (!scaleX || !scaleY || !stageRect.width || !stageRect.height) {
+        slotMonitorBlend.style.display = 'none';
+        return;
+      }
+      slotMonitorBlend.style.left = ((stageRect.left - virtualRect.left) / scaleX) + 'px';
+      slotMonitorBlend.style.top = ((stageRect.top - virtualRect.top) / scaleY) + 'px';
+      slotMonitorBlend.style.width = (stageRect.width / scaleX) + 'px';
+      slotMonitorBlend.style.height = (stageRect.height / scaleY) + 'px';
+      slotMonitorBlend.style.borderRadius = getComputedStyle(slotMonitorStage).borderRadius;
+    }
+
+    function setSlotOperatorPreviewBackground(bgValue) {
+      if (!slotMonitorBackground) return;
+      const value = (typeof bgValue === 'string' && bgValue) ? bgValue : "url('/images/Bible%20BG.jpg')";
+      slotMonitorBackground.style.backgroundImage = 'none';
+      slotMonitorBackground.style.backgroundColor = '#0757b8';
+      slotMonitorBackground.dataset.bgType = 'default';
+      slotMonitorBackground.removeAttribute('data-bg-selection');
+      if (value === 'transparent') {
+        slotMonitorBackground.dataset.bgType = 'transparent';
+        return;
+      }
+      if (value.startsWith('animated:')) {
+        slotMonitorBackground.dataset.bgType = 'animated';
+        slotMonitorBackground.dataset.bgSelection = value.slice('animated:'.length) || 'blue-wave';
+        return;
+      }
+      if (/^url\(/i.test(value)) {
+        slotMonitorBackground.style.backgroundImage = value;
+        slotMonitorBackground.style.backgroundColor = '#071226';
+        slotMonitorBackground.style.backgroundSize = 'cover';
+        slotMonitorBackground.style.backgroundPosition = 'center';
+        slotMonitorBackground.style.backgroundRepeat = 'no-repeat';
+        return;
+      }
+      slotMonitorBackground.style.backgroundColor = value;
+    }
+
+    function getSlotPreviewLengthFontSize(textValue, settings) {
+      const length = Array.from(String(textValue || '').trim()).length;
+      const ranges = [[1,50],[51,100],[101,150],[151,200],[201,250],[251,300],[301,350],[351,400],[401,450],[451,500],[501,550],[551,600],[601,650],[651,999]];
+      const supplied = Array.isArray(settings && settings.lengthFontSizes) ? settings.lengthFontSizes : null;
+      const values = supplied || SLOT_PREVIEW_DEFAULT_LENGTH_FONTS;
+      for (let i = 0; i < ranges.length; i++) {
+        const [min, max] = ranges[i];
+        if (length >= min && (length <= max || i === ranges.length - 1)) {
+          const n = Number(values[i]);
+          return Number.isFinite(n) ? Math.min(100, Math.max(14, n)) : SLOT_PREVIEW_DEFAULT_LENGTH_FONTS[i];
+        }
+      }
+      return SLOT_PREVIEW_DEFAULT_LENGTH_FONTS[SLOT_PREVIEW_DEFAULT_LENGTH_FONTS.length - 1];
+    }
+
+    function fitSlotOperatorPreviewText() {
+      if (!dispBody || !slotMonitorVerseContainer) return;
+      const data = latestOutputPayload || {};
+      const settings = data.settings || {};
+      const fonts = data.fonts || {};
+      const modes = settings.modeAdjustments || {};
+      const composition = modes[1] || modes['1'] || {};
+      const rawMax = Number.parseInt(settings.maxFontSize ?? fonts.contentSize ?? 100, 10);
+      const requestedMax = Math.min(100, Math.max(14, Number.isFinite(rawMax) ? rawMax : 100));
+      const lengthBasedMax = getSlotPreviewLengthFontSize(dispBody.textContent, settings);
+      const effectiveMax = Math.max(14, Math.min(requestedMax, lengthBasedMax));
+      const letterSpacing = Number.isFinite(Number(composition.letterSpacing)) ? Math.min(10, Math.max(-2, Number(composition.letterSpacing))) : 0;
+      const lineHeight = Number.isFinite(Number(composition.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(composition.lineSpacing))) : 1.55;
+      dispBody.style.letterSpacing = letterSpacing + 'px';
+      dispBody.style.lineHeight = String(lineHeight);
+      dispBody.style.width = '100%';
+      dispBody.style.maxHeight = '100%';
+      dispBody.style.overflow = 'hidden';
+      const usableHeight = slotMonitorVerseContainer.clientHeight;
+      const usableWidth = slotMonitorVerseContainer.clientWidth;
+      if (!usableHeight || !usableWidth) return;
+      let low = 14, high = Math.max(14, Math.floor(effectiveMax)), best = 14;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        dispBody.style.fontSize = mid + 'px';
+        if (dispBody.scrollHeight <= usableHeight + 1 && dispBody.scrollWidth <= usableWidth + 1) {
+          best = mid;
+          low = mid + 1;
+        } else high = mid - 1;
+      }
+      dispBody.style.fontSize = best + 'px';
+    }
+
+    function renderSlotOperatorPreviewWords() {
+      if (!dispBody) return;
+      dispBody.innerHTML = '';
+      const words = Array.isArray(localSlotState.words) ? localSlotState.words : [];
+      const highlighted = new Set(Array.isArray(localSlotState.highlighted) ? localSlotState.highlighted : []);
+      words.forEach((word, index) => {
+        const span = document.createElement('span');
+        span.className = 'word-span' + (highlighted.has(index) ? ' highlighted active-highlight' : '');
+        span.textContent = word;
+        dispBody.appendChild(span);
+        if (index < words.length - 1 && localSlotState.hasSpaces !== false) {
+          const space = document.createElement('span');
+          space.className = 'space-span';
+          space.textContent = ' ';
+          dispBody.appendChild(space);
+        }
+      });
+      requestAnimationFrame(fitSlotOperatorPreviewText);
+    }
+
+    function syncSlotOperatorOutputPreview(payload) {
+      const data = payload || latestOutputPayload || {};
+      latestOutputPayload = data;
+      const settings = data.settings || {};
+      const fonts = data.fonts || {};
+      const modes = settings.modeAdjustments || {};
+      const composition = modes[1] || modes['1'] || {};
+      const marginRaw = Number.parseFloat(settings.screenMargin ?? 39);
+      const margin = Math.min(120, Math.max(0, Number.isFinite(marginRaw) ? marginRaw : 39));
+      const availableWidth = Math.max(1, 1920 - margin * 2);
+      const availableHeight = Math.max(1, 1080 - margin * 2);
+      const stageWidth = Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
+      const stageHeight = stageWidth * 9 / 16;
+      if (slotMonitorStage) {
+        slotMonitorStage.style.width = stageWidth + 'px';
+        slotMonitorStage.style.height = stageHeight + 'px';
+        slotMonitorStage.style.left = ((1920 - stageWidth) / 2) + 'px';
+        slotMonitorStage.style.top = ((1080 - stageHeight) / 2) + 'px';
+      }
+
+      // The preview is one independent 16:9 slot canvas, just like the four
+      // mini-monitors in the Main Operator. Output's 2/3/4 grid transform is
+      // intentionally not applied to this isolated slot preview.
+      const framing = modes[1] || modes['1'] || {};
+      const zoomX = Math.min(1.5, Math.max(.5, (Number.isFinite(Number(framing.zoomX)) ? Number(framing.zoomX) : 100) / 100));
+      const zoomY = Math.min(1.5, Math.max(.5, (Number.isFinite(Number(framing.zoomY)) ? Number(framing.zoomY) : 100) / 100));
+      const panX = Math.min(400, Math.max(-400, Number.isFinite(Number(framing.panX)) ? Number(framing.panX) : 0));
+      const panY = Math.min(400, Math.max(-400, Number.isFinite(Number(framing.panY)) ? Number(framing.panY) : 0));
+      if (slotMonitorStage) {
+        slotMonitorStage.style.transformOrigin = '50% 0%';
+        slotMonitorStage.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0) scaleX(' + zoomX + ') scaleY(' + zoomY + ')';
+      }
+
+      const padRaw = Number.parseInt(composition.boxPadding ?? settings.boxPadding ?? 70, 10);
+      const pad = Math.min(90, Math.max(10, Number.isFinite(padRaw) ? padRaw : 70));
+      const gapRaw = Number.parseInt(composition.topGap ?? settings.topGap ?? 25, 10);
+      const topGap = Math.min(120, Math.max(0, Number.isFinite(gapRaw) ? gapRaw : 25));
+      const content = slotMonitorStage && slotMonitorStage.querySelector('.slot-monitor-content');
+      if (content) content.style.padding = pad + 'px ' + (pad + 8) + 'px';
+      const referenceContainer = slotMonitorStage && slotMonitorStage.querySelector('.slot-monitor-reference-container');
+      if (referenceContainer) referenceContainer.style.marginBottom = topGap + 'px';
+
+      const hidden = !!settings.hideBoxBg;
+      const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 100, 10);
+      const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 100)) / 100;
+      const blendMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'multiply';
+      const tint = blendMode === 'multiply' ? '#8499B8' : (blendMode === 'darken' ? '#243B5E' : '#0A193C');
+      if (slotMonitorBlend) {
+        slotMonitorBlend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
+        slotMonitorBlend.style.backgroundColor = tint;
+        slotMonitorBlend.style.opacity = String(opacity);
+        slotMonitorBlend.style.mixBlendMode = blendMode === 'default' ? 'normal' : blendMode;
+      }
+      if (slotMonitorStage) {
+        slotMonitorStage.style.border = hidden ? 'none' : '2px solid #A78336';
+        slotMonitorStage.style.borderRadius = hidden ? '0px' : '64px';
+        slotMonitorStage.style.boxShadow = hidden ? 'none' : '0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20)';
+      }
+      setSlotOperatorPreviewBackground(data.bg || "url('/images/Bible%20BG.jpg')");
+
+      if (dispRef) {
+        dispRef.style.fontFamily = fonts.ref || 'Arial, Helvetica, sans-serif';
+        dispRef.style.fontWeight = fonts.refBold === false ? '400' : '700';
+        dispRef.style.fontStyle = fonts.refItalic ? 'italic' : 'normal';
+        dispRef.style.fontSize = (Number.parseInt(fonts.refSize, 10) || 65) + 'px';
+        dispRef.style.textShadow = fonts.refShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+      }
+      if (dispVer) {
+        dispVer.style.fontFamily = fonts.version || 'Arial, Helvetica, sans-serif';
+        dispVer.style.fontWeight = fonts.verBold ? '700' : '400';
+        dispVer.style.fontStyle = fonts.verItalic === false ? 'normal' : 'italic';
+        dispVer.style.fontSize = (Number.parseInt(fonts.verSize, 10) || 60) + 'px';
+        dispVer.style.color = '#FFFF00';
+        dispVer.style.textShadow = fonts.verShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+      }
+      if (dispBody) {
+        dispBody.style.fontFamily = fonts.content || 'Arial, Helvetica, sans-serif';
+        dispBody.style.fontWeight = fonts.contentBold === false ? '400' : '700';
+        dispBody.style.fontStyle = fonts.contentItalic ? 'italic' : 'normal';
+        dispBody.style.color = '#FFFFFF';
+        dispBody.querySelectorAll('.word-span').forEach(word => {
+          word.style.textShadow = fonts.contentShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
+        });
+      }
+      syncSlotOperatorBlendOverlay();
+      requestAnimationFrame(fitSlotOperatorPreviewText);
+    }
+
+    if (window.ResizeObserver && slavePreviewViewport) {
+      slotPreviewResizeObserver = new ResizeObserver(() => fitSlotOperatorPreviewFrame());
+      slotPreviewResizeObserver.observe(slavePreviewViewport);
+    } else {
+      window.addEventListener('resize', fitSlotOperatorPreviewFrame);
+    }
+    fitSlotOperatorPreviewFrame();
 
     const histList = document.getElementById('histList');
     const histCount = document.getElementById('histCount');
@@ -753,6 +1255,7 @@
 
     opSlotSelect.value = String(mySlotIdx);
     if (myOperatorName) opNameInput.value = myOperatorName;
+    syncSlotOperatorOutputPreview({});
 
     // 1. Load Translations List & Default Bible JSON directly
     async function ensureBibleLoaded(transId) {
@@ -826,10 +1329,8 @@
       dispRef.textContent = localSlotState.reference;
       dispVer.textContent = localSlotState.versionName;
 
-      const highSet = new Set(localSlotState.highlighted || []);
-      dispBody.innerHTML = localSlotState.words.map((w, i) =>
-        highSet.has(i) ? '<span class="slave-word-high">' + w + '</span>' : w
-      ).join(localSlotState.hasSpaces === false ? '' : ' ');
+      renderSlotOperatorPreviewWords();
+      syncSlotOperatorOutputPreview(latestOutputPayload || {});
 
       if (recordHist && isLoggedIn && localSlotState.words.length > 0) {
         addVerseToHistory(localSlotState.reference, localSlotState.versionName, localSlotState.transId, localSlotState.words);
@@ -1083,6 +1584,7 @@
 
     async function applyIncomingState(data) {
       if (!data) return;
+      latestOutputPayload = data;
       if (data.pilots) updateSlotDropdownLocks(data.pilots);
       const sourceSlots = data.allSlots || data.slots;
       if (Array.isArray(sourceSlots)) {
@@ -1107,10 +1609,7 @@
 
           dispRef.textContent = ref;
           dispVer.textContent = ver;
-          const highSet = new Set(localSlotState.highlighted);
-          dispBody.innerHTML = words.map((w, i) =>
-            highSet.has(i) ? '<span class="slave-word-high">' + w + '</span>' : w
-          ).join(localSlotState.hasSpaces === false ? '' : ' ');
+          renderSlotOperatorPreviewWords();
 
           if (isLoggedIn) addVerseToHistory(ref, ver, localSlotState.transId, words);
 
@@ -1121,6 +1620,7 @@
           liveStatusBadge.textContent = isLive ? '● LIVE ON OUTPUT' : '● STAGING MODE';
         }
       }
+      syncSlotOperatorOutputPreview(data);
     }
 
     function connectSocket() {
