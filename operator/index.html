@@ -217,20 +217,287 @@
     }
     .focus-badge.editing { background: #facc15; color: #0f172a; }
 
+    /* OUTPUT-STYLE SLOT MONITORS: one independent 16:9 preview per Operator slot. */
+    .slot-card { min-width: 0; min-height: 0; }
     .slot-canvas {
-      flex: 1; padding: 16px 20px; font-size: var(--op-slot-font-size, 24px); line-height: 1.75;
-      text-align: center; overflow-y: auto; color: #cbd5e1; user-select: none;
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 8px;
+      background: #090f1b;
+      user-select: none;
     }
-    .slot-card.active-slot .slot-canvas { color: #ffffff; }
-    .word-span, .space-span {
-      display: inline; padding: 2px 0; border-radius: 4px; transition: all 0.15s ease;
+    .slot-monitor-frame {
+      position: relative;
+      flex: 0 0 auto;
+      width: 16px;
+      height: 9px;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: #071226;
+      border: 1px solid rgba(148, 163, 184, .48);
+      border-radius: 3px;
+      box-shadow: 0 5px 16px rgba(0,0,0,.38), 0 0 0 1px rgba(0,0,0,.35);
+      isolation: isolate;
     }
-    .word-span { cursor: pointer; }
-    .word-span:hover { background: rgba(255,255,255,0.14); }
-    .word-span.highlighted, .space-span.highlighted {
-      background: rgba(250, 204, 21, 0.88) !important;
+    .slot-monitor-virtual {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      transform-origin: top left;
+      background: #0757b8;
+    }
+    .slot-monitor-background {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-color: #0757b8;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      overflow: hidden;
+    }
+    .slot-monitor-background[data-bg-type="transparent"] {
+      background-color: #111827;
+      background-image:
+        linear-gradient(45deg, rgba(148,163,184,.12) 25%, transparent 25%, transparent 75%, rgba(148,163,184,.12) 75%),
+        linear-gradient(45deg, rgba(148,163,184,.12) 25%, transparent 25%, transparent 75%, rgba(148,163,184,.12) 75%);
+      background-position: 0 0, 18px 18px;
+      background-size: 36px 36px;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"] {
+      background-image:
+        radial-gradient(ellipse at 74% 15%, rgba(117,211,255,.42), transparent 34%),
+        radial-gradient(ellipse at 17% 82%, rgba(0,22,92,.50), transparent 38%),
+        linear-gradient(45deg, #06368f 0%, #0757b8 35%, #167fdb 70%, #38a9ff 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"]::before,
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"]::before {
+      content: "";
+      position: absolute;
+      left: -5%; right: -5%; bottom: -19%; height: 56%;
+      border-radius: 48% 52% 0 0 / 25% 28% 0 0;
+      background: linear-gradient(155deg, rgba(18,143,231,.82), rgba(4,54,135,.93));
+      transform: rotate(-4deg);
+      animation: opMonitorWaveFront 12s ease-in-out infinite alternate;
+      box-shadow: 0 -22px 55px rgba(70,190,255,.16);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="blue-wave"]::after,
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"]::after {
+      content: "";
+      position: absolute;
+      left: -5%; right: -5%; bottom: -25%; height: 43%;
+      border-radius: 50% 50% 0 0 / 30% 34% 0 0;
+      background: rgba(2,40,112,.58);
+      transform: rotate(3deg);
+      animation: opMonitorWaveBack 15s ease-in-out infinite alternate;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="digibible-blue"] {
+      background-image:
+        radial-gradient(ellipse at 72% 12%, rgba(0,168,232,.45), transparent 42%),
+        radial-gradient(ellipse at 0% 70%, rgba(6,60,156,.5), transparent 46%),
+        linear-gradient(120deg, #104d9a 0%, #0864b2 36%, #0786c9 72%, #0871c6 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"] {
+      background-image:
+        radial-gradient(ellipse at 70% 10%, rgba(55,156,225,.35), transparent 38%),
+        linear-gradient(140deg, #1d7acb 0%, #105a9f 54%, #073e7c 100%);
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .82;
+      background:
+        linear-gradient(180deg, transparent 0 10%, rgba(3,33,84,.18) 10% 11%, transparent 11% 100%),
+        repeating-linear-gradient(90deg, transparent 0 12%, rgba(255,196,0,.82) 12% 12.4%, transparent 12.4% 24%);
+      clip-path: polygon(0 0,100% 0,100% 42%,92% 58%,84% 42%,76% 58%,68% 42%,60% 58%,52% 42%,44% 58%,36% 42%,28% 58%,20% 42%,12% 58%,4% 42%,0 48%);
+      animation: opMonitorPennantDrift 7s ease-in-out infinite alternate;
+    }
+    .slot-monitor-background[data-bg-type="animated"][data-bg-selection="spbb-pennant"]::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0; height: 30%;
+      background: linear-gradient(180deg, transparent, rgba(2,29,78,.55));
+    }
+    @keyframes opMonitorWaveFront {
+      0% { transform: translateX(-1.5%) translateY(0) rotate(-4deg); }
+      100% { transform: translateX(1.5%) translateY(-1.2%) rotate(-2.5deg); }
+    }
+    @keyframes opMonitorWaveBack {
+      0% { transform: translateX(1.2%) translateY(0) rotate(3deg); }
+      100% { transform: translateX(-1.2%) translateY(-1%) rotate(1.5deg); }
+    }
+    @keyframes opMonitorPennantDrift {
+      0% { transform: translateX(-.6%) skewY(-.3deg); }
+      100% { transform: translateX(.6%) skewY(.3deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slot-monitor-background::before,
+      .slot-monitor-background::after { animation: none !important; }
+    }
+    .slot-monitor-stage {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      top: 50%;
+      width: 1781px;
+      height: 1002px;
+      transform: translate(-50%, -50%);
+      overflow: hidden;
+      border: 2px solid #A78336;
+      border-radius: 64px;
+      background: transparent;
+      box-shadow: 0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20);
+    }
+    .slot-monitor-blend {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      z-index: 1;
+      background: #8499B8;
+      opacity: 1;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+    .slot-monitor-content {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 55px 63px;
+      color: #ffffff;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .slot-monitor-reference-container {
+      flex: 0 0 auto;
+      text-align: left;
+      margin-bottom: 25px;
+    }
+    .slot-monitor-reference-title {
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 65px;
+      line-height: 1.15;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+      white-space: normal;
+    }
+    .slot-monitor-version-subtitle {
+      color: #FFFF00;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 60px;
+      line-height: 1.15;
+      font-weight: 400;
+      font-style: italic;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-top: 2px;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+    }
+    .slot-monitor-verse-container {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      text-align: center;
+    }
+    .slot-monitor-verse-text {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 46px;
+      line-height: 1.2;
+      text-align: center;
+      word-break: break-word;
+      pointer-events: auto;
+      user-select: none;
+    }
+    .slot-monitor-verse-text .word-span,
+    .slot-monitor-verse-text .space-span {
+      display: inline;
+      padding: 2px 0;
+      border-radius: 4px;
+      transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+      text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+    }
+    .slot-monitor-verse-text .word-span { cursor: pointer; }
+    .slot-monitor-verse-text .word-span:hover { background: rgba(255,255,255,.14); }
+    .slot-monitor-verse-text .word-span.highlighted,
+    .slot-monitor-verse-text .space-span.highlighted {
+      background: rgba(250,204,21,.88);
+      color: #0f172a;
+      box-shadow: 0 0 8px 2px rgba(250,204,21,.45);
+    }
+    html[data-op-hl-mode="karaoke"] .slot-monitor-verse-text .word-span.highlighted {
+      background: transparent !important;
+      color: var(--op-hl-font-color, #ffd700) !important;
+      text-shadow: 0 0 8px var(--op-hl-font-color, #ffd700), 0 0 16px var(--op-hl-font-color, #ffd700), 2px 2px 4px rgba(0,0,0,.95) !important;
+      box-shadow: none !important;
+    }
+    html[data-op-hl-mode="box"] .slot-monitor-verse-text .word-span.highlighted,
+    html[data-op-hl-mode="box"] .slot-monitor-verse-text .space-span.highlighted {
+      background: var(--op-hl-box-color, rgba(255,215,0,.85)) !important;
+      color: #ffffff !important;
+      text-shadow: 1px 1px 3px rgba(0,0,0,.9) !important;
+      box-shadow: none !important;
+    }
+    html[data-op-hl-mode="box"] .slot-monitor-verse-text .word-span.highlighted.highlight-start {
+      border-top-left-radius: var(--op-hl-corner-radius, 6px);
+      border-bottom-left-radius: var(--op-hl-corner-radius, 6px);
+    }
+    html[data-op-hl-mode="box"] .slot-monitor-verse-text .word-span.highlighted.highlight-end {
+      border-top-right-radius: var(--op-hl-corner-radius, 6px);
+      border-bottom-right-radius: var(--op-hl-corner-radius, 6px);
+    }
+    /* OPERATOR MONITOR: clean word highlight, never a karaoke glow or space bar. */
+    html[data-op-hl-mode] .slot-monitor-verse-text .word-span.highlighted,
+    html[data-op-hl-mode] .slot-monitor-verse-text .word-span.active-highlight,
+    html:not([data-op-hl-mode]) .slot-monitor-verse-text .word-span.highlighted,
+    html:not([data-op-hl-mode]) .slot-monitor-verse-text .word-span.active-highlight {
+      background: rgba(250, 204, 21, .90) !important;
+      background-color: rgba(250, 204, 21, .90) !important;
       color: #0f172a !important;
-      box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.45);
+      text-shadow: none !important;
+      box-shadow: none !important;
+      border-radius: 3px !important;
+    }
+    html[data-op-hl-mode] .slot-monitor-verse-text .space-span.highlighted,
+    html[data-op-hl-mode] .slot-monitor-verse-text .space-span.active-highlight,
+    html:not([data-op-hl-mode]) .slot-monitor-verse-text .space-span.highlighted,
+    html:not([data-op-hl-mode]) .slot-monitor-verse-text .space-span.active-highlight {
+      background: transparent !important;
+      background-color: transparent !important;
+      color: inherit !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+    }
+    .slot-monitor-verse-text .word-span.highlighted:hover,
+    .slot-monitor-verse-text .word-span.active-highlight:hover {
+      background: rgba(250, 204, 21, .90) !important;
     }
     .op-footer {
       text-align: center; font-size: 11.5px; color: #94a3b8;
@@ -510,10 +777,7 @@
         <button type="button" class="mode-pill" data-mode="3" title="Left-click: select layout · Right-click: adjust layout settings">3 Split</button>
         <button type="button" class="mode-pill" data-mode="4" title="Left-click: select layout · Right-click: adjust layout settings">4 Grid (2x2)</button>
       </div>
-      <div class="workspace-status">
-        Operator Screen: <strong>Permanent 4-Slot Workspace (HTML5)</strong>
-      </div>
-    </div>
+
   </header>
 
   <!-- Right-click menu for independent horizontal/vertical framing and typography in all output layouts -->
@@ -584,11 +848,9 @@
 
   <!-- TOP-RIGHT BUTTON STACK (GEAR & MODALS) -->
   <div class="top-right-btn-stack">
-    <button id="gearBtn" class="side-stack-btn">⚙️ Settings</button>
     <button id="fontBtn" class="side-stack-btn">🔤 Change Font</button>
     <button id="layoutBtn" class="side-stack-btn">📐 Box & Margin</button>
     <button id="animBtn" class="side-stack-btn">✨ Animation</button>
-    <button id="historyBtn" class="side-stack-btn">📜 History</button>
   </div>
 
   <!-- 4-SLOT WORKSPACE -->
@@ -791,6 +1053,19 @@
         <div class="lan-label-col">Global Max Verse Font Size:</div>
         <input type="range" id="layoutMaxFontRange" min="14" max="100" value="100" style="flex:1; accent-color:#38bdf8;">
         <span id="layoutMaxFontVal" style="width:48px; text-align:right; font-weight:800; color:#4ade80;">100px</span>
+      </div>
+      <div class="lan-row">
+        <div class="lan-label-col">Verse Box Opacity:</div>
+        <input type="range" id="layoutVerseBoxOpacityRange" min="0" max="100" step="1" value="100" style="flex:1; accent-color:#38bdf8;">
+        <span id="layoutVerseBoxOpacityVal" style="width:48px; text-align:right; font-weight:800; color:#38bdf8;">100%</span>
+      </div>
+      <div class="lan-row">
+        <div class="lan-label-col">Verse Box Blending:</div>
+        <select id="layoutVerseBoxBlendSelect" class="lan-font-select" style="max-width:220px;">
+          <option value="default">Default</option>
+          <option value="multiply" selected>Multiply</option>
+          <option value="darken">Darken</option>
+        </select>
       </div>
       <div class="lan-row">
         <div class="lan-label-col">Verse Box Background:</div>
@@ -1071,7 +1346,7 @@
     </div>
   </div>
 
-  <script src="operator.js?v=20261112-bible-translation-regular-v1"></script>
+  <script src="operator.js?v=20261113-operator-monitor-stable-clean-highlight-v2"></script>
 
 
 
