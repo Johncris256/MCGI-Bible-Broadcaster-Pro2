@@ -208,7 +208,7 @@
       border-radius: 6px;
     }
     .conn-dot {
-      display: inblock;
+      display: inline-block;
       width: 8px;
       height: 8px;
       border-radius: 50%;
@@ -309,7 +309,7 @@
       flex: 1;
       padding: 28px;
       font-size: 26px;
-      line-height: 1.2;
+      line-height: 1.65;
       text-align: center;
       color: #ffffff;
       overflow-y: auto;
@@ -514,7 +514,7 @@
       line-height: 1.15;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: -1.1px;
+      letter-spacing: -1.7px;
       text-shadow: 2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
       white-space: normal;
       pointer-events: auto;
@@ -552,8 +552,7 @@
       color: #ffffff;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 46px;
-      letter-spacing: -1.1px;
-      line-spacing: 1.2;
+      line-height: 1.2;
       text-align: center;
       word-break: break-word;
       pointer-events: none;
@@ -1099,15 +1098,13 @@
       if (!dispBody || !slotMonitorVerseContainer) return;
       const data = latestOutputPayload || {};
       const settings = data.settings || {};
-      const fonts = data.fonts || {};
       const modes = settings.modeAdjustments || {};
       const composition = modes[1] || modes['1'] || {};
-      const rawMax = Number.parseInt(settings.maxFontSize ?? fonts.contentSize ?? 100, 10);
-      const requestedMax = Math.min(100, Math.max(14, Number.isFinite(rawMax) ? rawMax : 100));
-      const lengthBasedMax = getSlotPreviewLengthFontSize(dispBody.textContent, settings);
-      const effectiveMax = Math.max(14, Math.min(requestedMax, lengthBasedMax));
+      // The content-length range is the only configured target. The fit pass
+      // may still reduce it to keep the verse inside this preview box.
+      const effectiveMax = getSlotPreviewLengthFontSize(dispBody.textContent, settings);
       const letterSpacing = Number.isFinite(Number(composition.letterSpacing)) ? Math.min(10, Math.max(-2, Number(composition.letterSpacing))) : 0;
-      const lineHeight = Number.isFinite(Number(composition.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(composition.lineSpacing))) : 1.55;
+      const lineHeight = Number.isFinite(Number(composition.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(composition.lineSpacing))) : 1.20;
       dispBody.style.letterSpacing = letterSpacing + 'px';
       dispBody.style.lineHeight = String(lineHeight);
       dispBody.style.width = '100%';
