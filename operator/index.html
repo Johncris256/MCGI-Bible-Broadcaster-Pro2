@@ -511,6 +511,60 @@
       padding: 5px 0 7px 0; flex-shrink: 0;
     }
 
+    /* COMPACT QUICK VERSE HISTORY — one row, ten recent verses. */
+    .quick-history-panel {
+      flex: 0 0 72px; height: 72px; min-height: 72px;
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 5px 16px 6px; overflow: hidden;
+      background: #0b1220; border-top: 1px solid #26344b;
+    }
+    .quick-history-head {
+      min-height: 12px; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; color: #94a3b8; font-size: 9px; line-height: 12px;
+      font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      user-select: none;
+    }
+    .quick-history-heading { color: #38bdf8; white-space: nowrap; }
+    .quick-history-target {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: #facc15; letter-spacing: .03em; text-align: right;
+    }
+    .quick-history-items {
+      flex: 1 1 auto; min-height: 0; min-width: 0;
+      display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr); align-items: stretch; gap: 5px;
+    }
+    .quick-history-card {
+      min-width: 0; min-height: 0; height: 100%; padding: 3px 7px;
+      display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+      gap: 1px; overflow: hidden; cursor: pointer; text-align: left;
+      color: #e2e8f0; background: #111c2e; border: 1px solid #2c3c55; border-radius: 5px;
+      transition: background .12s ease, border-color .12s ease, transform .12s ease;
+      will-change: transform, opacity;
+    }
+    .quick-history-card:hover {
+      background: #1b2a41; border-color: #38bdf8; transform: translateY(-1px);
+    }
+    .quick-history-ref {
+      display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: #f8fafc; font-size: 11px; line-height: 13px; font-weight: 800;
+    }
+    .quick-history-version {
+      display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: #94a3b8; font-size: 8.5px; line-height: 10px; font-weight: 600;
+    }
+    /* FLIP motion: the newest verse enters at the left while older cards slide right. */
+    @media (prefers-reduced-motion: reduce) {
+      .quick-history-card { transition: none !important; }
+    }
+    @media (max-width: 1050px) {
+      .quick-history-panel { padding-left: 10px; padding-right: 10px; }
+      .quick-history-items { gap: 3px; }
+      .quick-history-card { padding-left: 4px; padding-right: 4px; }
+      .quick-history-ref { font-size: 10px; }
+      .quick-history-version { font-size: 8px; }
+    }
+
     /* TOP-RIGHT GEAR & MODAL BUTTONS (LOCKED TO TOP RIGHT) */
     .top-right-btn-stack {
       position: fixed; top: 6px; right: 10px; z-index: 9998;
@@ -903,6 +957,15 @@
       <div class="slot-canvas" id="slotCanvas3"></div>
     </div>
   </main>
+
+  <!-- QUICK VERSE HISTORY: recalls into whichever slot is currently focused. -->
+  <section class="quick-history-panel" id="quickHistoryPanel" aria-label="Quick Verse History">
+    <div class="quick-history-head">
+      <span class="quick-history-heading">↶ QUICK VERSE HISTORY</span>
+      <span class="quick-history-target" id="quickHistoryTarget">CLICK A VERSE TO RECALL INTO THE FOCUSED SLOT</span>
+    </div>
+    <div class="quick-history-items" id="quickHistoryItems" aria-live="polite"></div>
+  </section>
 
   <footer class="op-footer">
     💡 Tip: Mag-Right Click sa kahit anong Slot para magpalit ng Verse (o pindutin ang <b>Enter</b>), magpalit ng Translation, Copy/Paste Slot, o tingnan ang History.
@@ -1327,6 +1390,271 @@
   </div>
 
   <script src="operator.js?v=20261114-mini-monitor-font-length-sync-v8"></script>
+
+  <script id="QUICK_VERSE_HISTORY_PANEL">
+    (function initQuickVerseHistoryPanel() {
+      const panelItems = document.getElementById('quickHistoryItems');
+      const targetLabel = document.getElementById('quickHistoryTarget');
+      const historyStorageKey = 'bible_quick_verse_history_v1';
+      if (!panelItems) return;
+
+      function getHistory() {
+        return Array.isArray(verseHistoryList) ? verseHistoryList : [];
+      }
+
+      function updateFocusedSlotLabel() {
+        if (!targetLabel) return;
+        const index = Number.isInteger(activeSlotIndex) ? activeSlotIndex : 0;
+        targetLabel.textContent = 'CLICK TO LOAD INTO FOCUSED SLOT ' + (index + 1);
+      }
+
+      function saveHistory() {
+        try {
+          localStorage.setItem(historyStorageKey, JSON.stringify(getHistory().slice(0, 100)));
+        } catch (err) {
+          console.warn('Quick Verse History could not be saved:', err);
+        }
+      }
+
+      let quickHistoryHasRendered = false;
+
+      function getHistoryEntryKey(item) {
+        return String(item.key || (item.reference + '|' + item.transId));
+      }
+
+      function renderQuickHistory(options) {
+        const recent = getHistory().slice(0, 10);
+        const reduceMotion = !!(window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        const requestedAnimation = options && typeof options.animate === 'boolean'
+          ? options.animate : quickHistoryHasRendered;
+        const animate = requestedAnimation && !reduceMotion;
+
+        const oldCards = Array.from(panelItems.querySelectorAll('.quick-history-card'));
+        const oldRects = new Map();
+        oldCards.forEach(button => {
+          if (button.dataset.historyKey) {
+            // Capture the visible position, including any animation that is still in progress.
+            oldRects.set(button.dataset.historyKey, button.getBoundingClientRect());
+          }
+          // Cancel an unfinished previous FLIP transition before applying the next one.
+          button.style.transition = 'none';
+          button.style.transform = 'none';
+          button.style.opacity = '1';
+        });
+
+        if (!recent.length) {
+          // Walang placeholder text: keep the strip clean until a verse is recorded.
+          panelItems.replaceChildren();
+          updateFocusedSlotLabel();
+          quickHistoryHasRendered = true;
+          return;
+        }
+
+        // Remove any stale empty-state node so the ten history cards always occupy
+        // exactly one grid row and never get compressed into a second row.
+        panelItems.querySelectorAll('.quick-history-empty').forEach(node => node.remove());
+        const oldByKey = new Map(oldCards.map(button => [button.dataset.historyKey, button]));
+        const keepKeys = new Set();
+        const orderedButtons = [];
+        const enteringButtons = new Set();
+
+        recent.forEach((item, index) => {
+          const key = getHistoryEntryKey(item);
+          keepKeys.add(key);
+          let button = oldByKey.get(key);
+
+          if (!button) {
+            button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'quick-history-card';
+            button.addEventListener('click', () => {
+              const currentItem = button.__quickHistoryItem;
+              if (currentItem) recallIntoFocusedSlot(currentItem);
+            });
+            enteringButtons.add(button);
+          }
+
+          button.dataset.historyKey = key;
+          button.__quickHistoryItem = item;
+          const reference = String(item.reference || 'Unknown verse');
+          const version = String(item.versionName || '');
+          button.title = reference + (version ? ' — ' + version : '') +
+            (item.time ? '\n' + item.time : '') +
+            (item.textPreview ? '\n' + item.textPreview : '');
+          button.setAttribute('aria-label', 'Recall ' + reference + ' (' + version + ') into focused slot');
+
+          let refEl = button.querySelector('.quick-history-ref');
+          if (!refEl) {
+            refEl = document.createElement('span');
+            refEl.className = 'quick-history-ref';
+            button.appendChild(refEl);
+          }
+          refEl.textContent = reference;
+
+          let versionEl = button.querySelector('.quick-history-version');
+          if (!versionEl) {
+            versionEl = document.createElement('span');
+            versionEl.className = 'quick-history-version';
+            button.appendChild(versionEl);
+          }
+          versionEl.textContent = version || ('HISTORY ' + (index + 1));
+          orderedButtons.push(button);
+        });
+
+        // Remove only entries that have fallen outside the latest ten.
+        oldCards.forEach(button => {
+          if (!keepKeys.has(button.dataset.historyKey)) button.remove();
+        });
+
+        // Reorder existing DOM nodes instead of rebuilding the whole row.
+        orderedButtons.forEach(button => panelItems.appendChild(button));
+
+        if (animate) {
+          const movingButtons = [];
+          orderedButtons.forEach(button => {
+            const nextRect = button.getBoundingClientRect();
+            const previousRect = oldRects.get(button.dataset.historyKey);
+            if (previousRect) {
+              const dx = previousRect.left - nextRect.left;
+              const dy = previousRect.top - nextRect.top;
+              if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                button.style.transition = 'none';
+                button.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+                button.style.opacity = '1';
+                movingButtons.push(button);
+              } else {
+                button.style.removeProperty('transition');
+                button.style.removeProperty('transform');
+                button.style.removeProperty('opacity');
+              }
+            } else if (enteringButtons.has(button)) {
+              // The newest verse subtly enters from the left to show where it landed.
+              button.style.transition = 'none';
+              button.style.transform = 'translate3d(-12px, 0, 0) scale(.985)';
+              button.style.opacity = '0';
+              movingButtons.push(button);
+            } else {
+              button.style.removeProperty('transition');
+              button.style.removeProperty('transform');
+              button.style.removeProperty('opacity');
+            }
+          });
+
+          if (movingButtons.length) {
+            // Commit the inverse positions, then animate each card into its new grid cell.
+            void panelItems.offsetWidth;
+            requestAnimationFrame(() => {
+              movingButtons.forEach(button => {
+                button.style.transition =
+                  'transform 300ms cubic-bezier(.22,.78,.24,1), opacity 240ms ease-out';
+                button.style.transform = 'translate3d(0, 0, 0) scale(1)';
+                button.style.opacity = '1';
+                const cleanup = event => {
+                  if (event.propertyName !== 'transform') return;
+                  button.style.removeProperty('transition');
+                  button.style.removeProperty('transform');
+                  button.style.removeProperty('opacity');
+                  button.removeEventListener('transitionend', cleanup);
+                };
+                button.addEventListener('transitionend', cleanup);
+              });
+            });
+          }
+        } else {
+          orderedButtons.forEach(button => {
+            button.style.removeProperty('transition');
+            button.style.removeProperty('transform');
+            button.style.removeProperty('opacity');
+          });
+        }
+
+        updateFocusedSlotLabel();
+        quickHistoryHasRendered = true;
+      }
+
+      async function recallIntoFocusedSlot(item) {
+        // Kuhanin muna ang focused slot sa oras ng click; hindi nito babaguhin ang focus.
+        const targetIndex = Number.isInteger(activeSlotIndex) ? activeSlotIndex : 0;
+        if (targetIndex < 0 || targetIndex > 3 || !slots || !slots[targetIndex]) return;
+        if (!item || !item.transId) return;
+
+        try {
+          await ensureTranslationLoaded(item.transId);
+          const slot = slots[targetIndex];
+          slot.transId = item.transId;
+          slot.versionName = item.versionName || slot.versionName;
+          slot.bookIndex = item.bookIndex;
+          slot.chapter = item.chapter;
+          slot.verse = item.verse;
+          loadSlotVerseData(targetIndex, true);
+          updateWorkspaceUI();
+          syncState();
+          updateFocusedSlotLabel();
+        } catch (err) {
+          console.error('Quick Verse History recall failed:', err);
+        }
+      }
+
+      // Existing Verse History system remains the source of truth; refresh both UIs together.
+      const originalRefreshHistory = window.refreshHistoryModalList;
+      window.refreshHistoryModalList = function() {
+        if (typeof originalRefreshHistory === 'function') {
+          originalRefreshHistory.apply(this, arguments);
+        }
+        renderQuickHistory({ animate: !suppressQuickHistoryAnimation });
+        saveHistory();
+      };
+
+      // Restore the same recent history after reload, while preserving anything newly loaded
+      // during startup. Restored items appear in place without a startup animation.
+      let suppressQuickHistoryAnimation = false;
+      function restoreSavedHistory() {
+        suppressQuickHistoryAnimation = true;
+        try {
+          const saved = JSON.parse(localStorage.getItem(historyStorageKey) || '[]');
+          if (Array.isArray(saved) && saved.length) {
+            const merged = [];
+            const seen = new Set();
+            [...getHistory(), ...saved].forEach(entry => {
+              if (!entry || !entry.reference || !entry.transId) return;
+              const key = entry.key || (entry.reference + '|' + entry.transId);
+              if (seen.has(key)) return;
+              seen.add(key);
+              merged.push({ ...entry, key });
+            });
+            verseHistoryList = merged.slice(0, 100);
+          }
+        } catch (err) {
+          console.warn('Quick Verse History restore failed:', err);
+        }
+        if (typeof window.refreshHistoryModalList === 'function') {
+          window.refreshHistoryModalList();
+        } else {
+          renderQuickHistory({ animate: false });
+        }
+        suppressQuickHistoryAnimation = false;
+      }
+
+      window.addEventListener('bbl-live-storage-hydrated', restoreSavedHistory);
+      renderQuickHistory();
+      updateFocusedSlotLabel();
+
+      // Keep the destination label in sync when a different slot becomes focused.
+      const workspace = document.getElementById('workspaceGrid');
+      if (workspace && typeof MutationObserver !== 'undefined') {
+        const focusObserver = new MutationObserver(updateFocusedSlotLabel);
+        workspace.querySelectorAll('.slot-card').forEach(card => {
+          focusObserver.observe(card, { attributes: true, attributeFilter: ['class'] });
+        });
+      }
+      document.addEventListener('click', event => {
+        if (event.target.closest('.slot-card')) {
+          requestAnimationFrame(updateFocusedSlotLabel);
+        }
+      }, true);
+    })();
+  </script>
 
 
 
