@@ -76,7 +76,7 @@ function updateHighlightClasses(container, wordsLength, highSet) {
   }
 }
 
-function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFontSizes, letterSpacingPx, lineSpacing, modeSettings) {
+function adjustSlotFontSize(boxEl, displayMode, fontsObj, lengthFontSizes, letterSpacingPx, lineSpacing) {
   const canvas = boxEl.querySelector('.slot-canvas');
   const container = boxEl.querySelector('.verse-container');
   const text = boxEl.querySelector('.verse-text');
@@ -96,30 +96,21 @@ function adjustSlotFontSize(boxEl, baseMaxSize, displayMode, fontsObj, lengthFon
   const rawRefSize = fontsObj && fontsObj.refSize;
   const hasExplicitRefSize = rawRefSize !== undefined && rawRefSize !== null &&
     String(rawRefSize).trim() !== '' && Number.isFinite(Number.parseInt(rawRefSize, 10));
-  const requestedTitleSize = Number(modeSettings && modeSettings.titleSize);
-  // Keep compatibility with older payloads that only supplied mode titleSize.
-  // A separately supplied reference font size always takes precedence.
-  const fallbackRefSize = Number.isFinite(requestedTitleSize)
-    ? readHeaderFontSize(requestedTitleSize, 60)
-    : 60;
-  const effectiveRefSize = hasExplicitRefSize
-    ? readHeaderFontSize(rawRefSize, 60)
-    : fallbackRefSize;
+  // The Bible Verse size in the font dialog is the single source of truth
+  // for the reference/title label across every layout.
+  const effectiveRefSize = hasExplicitRefSize ? readHeaderFontSize(rawRefSize, 65) : 65;
   const effectiveVerSize = readHeaderFontSize(fontsObj && fontsObj.verSize, 45);
   // Typography is fitted once on the native 16:9 canvas. Zoom X/Y then
   // stretches/compresses the canvas and every text element together.
   const contentText = text.textContent.trim();
-  const lengthBasedMax = getLengthBasedFontSize(contentText, lengthFontSizes);
-  const requestedMax = Math.min(100, Math.max(28, Number.parseInt(baseMaxSize, 10) || 100));
-  // The verse-length row is always the selected target ceiling. The layout
-  // Max is a separate upper bound; raising it above 72px must not bypass the
-  // active content-length row. A row can itself be configured up to 100px.
-  const effectiveMax = Math.max(14, Math.min(requestedMax, lengthBasedMax));
+  // The active content-length row is the only configured target. This fit pass
+  // can still choose a smaller size only when the text does not fit its box.
+  const effectiveMax = getLengthBasedFontSize(contentText, lengthFontSizes);
   const letterSpacing = readClampedFloat(letterSpacingPx, 0, -2, 10, 1);
   const lineHeight = readClampedFloat(lineSpacing, 1.55, 0.8, 2.5, 2);
 
-  // The per-layout Title Size scales both header labels together. Verse text
-  // keeps its independent content-length target and is fitted to the X/Y frame.
+  // Header labels use their dedicated font-dialog sizes. Verse text keeps
+  // its independent content-length target and is fitted to the X/Y frame.
   if (refTitle) refTitle.style.fontSize = effectiveRefSize + 'px';
   if (verSub) verSub.style.fontSize = effectiveVerSize + 'px';
   text.style.setProperty('letter-spacing', letterSpacing + 'px', 'important');
@@ -390,6 +381,53 @@ function applyOutputBackground(backgroundValue) {
   lastOutputBackgroundMode = backgroundValue || 'default';
 }
 
+const OUTPUT_VERSE_BOX_BLEND_CLASS = 'output-verse-box-blend';
+
+function getOutputVerseBoxAppearance(settings) {
+  const s = settings || {};
+  const opacityRaw = Number.parseInt(s.verseBoxOpacity ?? 88, 10);
+  const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 88));
+  const blendMode = ['default', 'multiply', 'darken'].includes(s.verseBoxBlendMode)
+    ? s.verseBoxBlendMode
+    : 'default';
+  const fill = blendMode === 'multiply'
+    ? '#8499B8'
+    : (blendMode === 'darken' ? '#243B5E' : '#0A193C');
+  return { opacity, blendMode, fill, hidden: !!s.hideBoxBg };
+}
+
+function syncOutputVerseBoxBlendOverlays(settings) {
+  const stage = document.getElementById('multiSlotStage');
+  if (!stage) return;
+
+  const appearance = getOutputVerseBoxAppearance(settings);
+  const boxes = Array.from(stage.children).filter(box => box.classList && box.classList.contains('render-box'));
+
+  boxes.forEach(box => {
+    const canvas = box.querySelector('.slot-canvas');
+    if (!canvas) return;
+
+    // Keep the fill layer INSIDE its own transformed canvas. This makes it
+    // inherit the exact same scale, X/Y zoom, pan, rounded clipping, and layout
+    // transitions as the border, including the centered lower tile in 3-Split.
+    let overlay = Array.from(canvas.children).find(child =>
+      child.classList && child.classList.contains(OUTPUT_VERSE_BOX_BLEND_CLASS)
+    );
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = OUTPUT_VERSE_BOX_BLEND_CLASS;
+      overlay.setAttribute('aria-hidden', 'true');
+      canvas.insertBefore(overlay, canvas.firstChild);
+    }
+
+    const isHidden = appearance.hidden || box.classList.contains('transparent-verse-box') || appearance.opacity <= 0;
+    overlay.style.backgroundColor = appearance.fill;
+    overlay.style.opacity = String(appearance.opacity / 100);
+    overlay.style.mixBlendMode = appearance.blendMode === 'default' ? 'normal' : appearance.blendMode;
+    overlay.style.display = isHidden ? 'none' : 'block';
+  });
+}
+
 function renderOutputState(data) {
   if (!data) return;
   lastReceivedData = data;
@@ -419,7 +457,6 @@ function renderOutputState(data) {
   const pad = readClampedInt(compositionSettings.boxPadding ?? s.boxPadding, 70, 10, 90);
   const outerMargin = (s.screenMargin !== undefined) ? parseInt(s.screenMargin, 10) : 39;
   const hideBoxBg = Boolean(s.hideBoxBg);
-  const baseMaxFont = readClampedInt(s.maxFontSize, 100, 14, 100);
   const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 25, 0, 120);
   const letterSpacingPx = readClampedFloat(compositionSettings.letterSpacing, 0, -2, 10, 1);
   const lineSpacing = readClampedFloat(compositionSettings.lineSpacing, 1.55, 0.8, 2.5, 2);
@@ -503,8 +540,12 @@ function renderOutputState(data) {
 
     updateHighlightClasses(contentEl, wordsArr.length, highSet);
     applyBoxTypography(boxEl, data.fonts);
-    adjustSlotFontSize(boxEl, baseMaxFont, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing, compositionSettings);
+    adjustSlotFontSize(boxEl, displayMode, data.fonts, lengthFontSizes, letterSpacingPx, lineSpacing);
   });
+
+  // Match Operator mini-monitor appearance: the box fill/opacity is a separate
+  // layer behind the verse text and above the live background image.
+  syncOutputVerseBoxBlendOverlays(s);
 }
 
 // 1. BroadcastChannel Listener (Tabs in same browser)
