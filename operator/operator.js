@@ -38,7 +38,7 @@ const VERSE_LENGTH_RANGES = Object.freeze([
   { min: 601, max: 650 }, { min: 651, max: 999 }
 ]);
 const PREVIOUS_DEFAULT_LENGTH_FONT_SIZES = Object.freeze([68, 69, 68, 59, 56, 50, 48, 43, 42, 28, 29, 27, 27, 24]);
-const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 88, 88, 79, 74, 70, 67, 66, 60, 58, 58, 27, 27, 24]);
+const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 89, 88, 79, 72, 66, 67, 66, 60, 58, 58, 27, 27, 24]);
 function loadLengthFontSizes() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('bible_length_font_sizes') || '[]'); } catch (e) {}
@@ -67,8 +67,8 @@ window.customLengthFontSizes = loadLengthFontSizes();
 // Verse box appearance defaults: full-strength navy fill blended with the
 // live background per tile. Multiply preserves the background's color/detail
 // while keeping the verse box visually strong at 100% opacity.
-const DEFAULT_VERSE_BOX_OPACITY = 100;
-const DEFAULT_VERSE_BOX_BLEND_MODE = 'multiply';
+const DEFAULT_VERSE_BOX_OPACITY = 88;
+const DEFAULT_VERSE_BOX_BLEND_MODE = 'default';
 const VALID_VERSE_BOX_BLEND_MODES = new Set(['default', 'multiply', 'darken']);
 const VERSE_BOX_DEFAULTS_VERSION_KEY = 'bible_verse_box_defaults_version';
 const VERSE_BOX_DEFAULTS_VERSION = '2026-11-12-multiply-100-v1';
@@ -111,27 +111,24 @@ window.customOutputFonts = {
   contentShadow: localStorage.getItem('bible_font_content_shadow') !== 'false',
   refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '65', 10),
   verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '60', 10),
-  contentSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10)
 };
 
 window.customLayoutSettings = {
   topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
   screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
   boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
-  maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
   hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
   verseBoxOpacity: readVerseBoxOpacitySetting(),
   verseBoxBlendMode: readVerseBoxBlendModeSetting()
 };
 
-// Per-layout defaults. New X framing and Title Size controls preserve the
-// existing Y framing, spacing, and verse-length font behavior.
-const DEFAULT_MODE_TITLE_SIZE = Math.min(120, Math.max(20, Number(window.customOutputFonts.refSize) || 65));
+// Per-layout framing defaults. Shared typography stays in the 1 Full composition
+// for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
-  3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
-  4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, titleSize: 60, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
+  4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
 });
 const MODE_DEFAULTS_VERSION = '2026-11-12-layout-defaults-reset-v7';
 function getDefaultModeAdjustment(mode) {
@@ -153,7 +150,6 @@ function normalizeModeAdjustment(value, mode = 1) {
     panX: boundedInt(item.panX, defaults.panX, -400, 400),
     zoomY: boundedInt(item.zoomY, defaults.zoomY, 50, 150),
     panY: boundedInt(item.panY, defaults.panY, -400, 400),
-    titleSize: boundedInt(item.titleSize, defaults.titleSize, 20, 120),
     topGap: boundedInt(item.topGap, defaults.topGap, 0, 120),
     boxPadding: boundedInt(item.boxPadding, defaults.boxPadding, 10, 90),
     letterSpacing: boundedNumber(item.letterSpacing, defaults.letterSpacing, -2, 10, 1),
@@ -166,7 +162,6 @@ function migrateLegacyModeDefaults(value, mode) {
   // Add newly introduced controls without changing existing custom values.
   if (item.zoomX === undefined || item.zoomX === null) item.zoomX = defaults.zoomX;
   if (item.panX === undefined || item.panX === null) item.panX = defaults.panX;
-  if (item.titleSize === undefined || item.titleSize === null) item.titleSize = defaults.titleSize;
   // Upgrade only the previous untouched generic Y defaults. Keep deliberate values.
   if (item.zoomY === undefined || item.zoomY === null || (Number(item.zoomY) === 100 && defaults.zoomY !== 100)) item.zoomY = defaults.zoomY;
   if (item.panY === undefined || item.panY === null || (Number(item.panY) === 0 && defaults.panY !== 0)) item.panY = defaults.panY;
@@ -179,15 +174,15 @@ function migrateLegacyModeDefaults(value, mode) {
   if (item.boxPadding === undefined || item.boxPadding === null || Number(item.boxPadding) === 70) item.boxPadding = defaults.boxPadding;
   if (item.letterSpacing === undefined || item.letterSpacing === null || Number(item.letterSpacing) === 0) item.letterSpacing = defaults.letterSpacing;
   if (item.lineSpacing === undefined || item.lineSpacing === null || Number(item.lineSpacing) === 1.55) item.lineSpacing = defaults.lineSpacing;
-  // Move untouched values from XY/Title v1 to the new 3 Split / 4 Grid defaults.
+  // Move untouched legacy XY framing defaults to the current 3 Split / 4 Grid defaults.
   // Values different from the previous defaults are treated as operator customizations.
-  const previousXYTitleDefaults = {
-    3: { zoomX: 100, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 70, boxPadding: 65, letterSpacing: -1.0 },
-    4: { zoomX: 100, titleSize: DEFAULT_MODE_TITLE_SIZE, topGap: 65, boxPadding: 70, letterSpacing: -1.1 }
+  const previousXYDefaults = {
+    3: { zoomX: 100, topGap: 70, boxPadding: 65, letterSpacing: -1.0 },
+    4: { zoomX: 100, topGap: 65, boxPadding: 70, letterSpacing: -1.1 }
   }[mode];
-  if (previousXYTitleDefaults) {
-    Object.keys(previousXYTitleDefaults).forEach(field => {
-      if (item[field] !== undefined && item[field] !== null && Number(item[field]) === Number(previousXYTitleDefaults[field])) {
+  if (previousXYDefaults) {
+    Object.keys(previousXYDefaults).forEach(field => {
+      if (item[field] !== undefined && item[field] !== null && Number(item[field]) === Number(previousXYDefaults[field])) {
         item[field] = defaults[field];
       }
     });
@@ -228,6 +223,23 @@ function loadModeAdjustments() {
   return normalized;
 }
 window.customModeAdjustments = loadModeAdjustments();
+function syncSharedTypographySettingsToLayoutState() {
+  const shared = normalizeModeAdjustment(
+    window.customModeAdjustments && window.customModeAdjustments[1]
+      ? window.customModeAdjustments[1]
+      : getDefaultModeAdjustment(1),
+    1
+  );
+  window.customLayoutSettings = {
+    ...window.customLayoutSettings,
+    topGap: shared.topGap,
+    boxPadding: shared.boxPadding,
+    letterSpacing: shared.letterSpacing,
+    lineSpacing: shared.lineSpacing
+  };
+  return shared;
+}
+syncSharedTypographySettingsToLayoutState();
 
 // Server-memory hydration happens after this script initializes on a new device.
 // Reload the per-mode values then, and rebroadcast once the workspace is ready.
@@ -239,7 +251,6 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     const upgrades = [
       ['bible_font_ref_size', '38', '65'],
       ['bible_font_ver_size', '19', '60'],
-      ['bible_max_font_size', '46', '100'],
       ['bible_screen_margin', '55', '39'],
       ['bible_top_gap', '18', '25'],
       ['bible_box_padding', '40', '70'],
@@ -260,11 +271,6 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     // Upgrade the previous untouched shared gap default (1px) to 25px.
     if (localStorage.getItem('bible_top_gap') === '1') {
       localStorage.setItem('bible_top_gap', '25');
-    }
-    // The old global Max default was 72px. Move that untouched default to 100px
-    // so the new content-length presets (including the 100px short-verse row) work.
-    if (['72', '80'].includes(localStorage.getItem('bible_max_font_size'))) {
-      localStorage.setItem('bible_max_font_size', '100');
     }
     localStorage.setItem('bible_defaults_version', '2026-11-12-bible-font-defaults-v1');
   }
@@ -297,18 +303,17 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     contentShadow: localStorage.getItem('bible_font_content_shadow') !== 'false',
     refSize: parseInt(localStorage.getItem('bible_font_ref_size') || '65', 10),
     verSize: parseInt(localStorage.getItem('bible_font_ver_size') || '60', 10),
-    contentSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10)
   };
   window.customLayoutSettings = {
     screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
     topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
     boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
-    maxFontSize: parseInt(localStorage.getItem('bible_max_font_size') || '100', 10),
     hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
     verseBoxOpacity: readVerseBoxOpacitySetting(),
     verseBoxBlendMode: readVerseBoxBlendModeSetting()
   };
   window.customModeAdjustments = loadModeAdjustments();
+  syncSharedTypographySettingsToLayoutState();
   window.customLengthFontSizes = loadLengthFontSizes();
 
   const savedBgUrl = localStorage.getItem('bible_custom_bg_url');
@@ -392,9 +397,10 @@ function syncState(forcePreviewAnim, options) {
     forcePreviewAnim: Boolean(forcePreviewAnim),
     settings: {
       topGap: (window.customLayoutSettings.topGap ?? 25) + 'px',
-      boxPadding: window.customLayoutSettings.boxPadding ?? 70,
+      boxPadding: window.customLayoutSettings.boxPadding ?? 55,
+      letterSpacing: window.customLayoutSettings.letterSpacing ?? -1.1,
+      lineSpacing: window.customLayoutSettings.lineSpacing ?? 1.20,
       screenMargin: window.customLayoutSettings.screenMargin ?? 39,
-      maxFontSize: window.customLayoutSettings.maxFontSize || 100,
       hideBoxBg: window.customLayoutSettings.hideBoxBg || false,
       verseBoxOpacity: window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY,
       verseBoxBlendMode: window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE,
@@ -736,12 +742,10 @@ function fitOperatorMonitorVerseText(slotIdx, settings, fonts, modeSettings) {
   const verseContainer = region && region.querySelector('.slot-monitor-verse-container');
   if (!text || !verseContainer) return;
 
-  const fontSettings = fonts || window.customOutputFonts || {};
   const mode = modeSettings || (window.customModeAdjustments && window.customModeAdjustments[1]) || {};
-  const rawMax = Number.parseInt(settings && settings.maxFontSize, 10);
-  const requestedMax = Math.min(100, Math.max(28, Number.isFinite(rawMax) ? rawMax : 100));
-  const lengthBasedMax = getOperatorMonitorLengthFontSize(text.textContent);
-  const effectiveMax = Math.max(14, Math.min(requestedMax, lengthBasedMax));
+  // The selected content-length row is the only configured font-size target.
+  // The fit pass may still step down when the verse cannot fit in its box.
+  const effectiveMax = getOperatorMonitorLengthFontSize(text.textContent);
   const letterSpacing = Number.isFinite(Number(mode.letterSpacing)) ? Math.min(10, Math.max(-2, Number(mode.letterSpacing))) : 0;
   const lineHeight = Number.isFinite(Number(mode.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(mode.lineSpacing))) : 1.55;
   text.style.letterSpacing = letterSpacing + 'px';
@@ -836,15 +840,15 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   if (monitor.reference) {
     monitor.reference.textContent = slot.reference || 'GENESIS 1:1';
     monitor.reference.style.fontFamily = fonts.ref || DEFAULT_ARIAL;
-    monitor.reference.style.fontWeight = fonts.refBold ? '700' : '400';
+    monitor.reference.style.fontWeight = fonts.refBold ? '600' : '400';
     monitor.reference.style.fontStyle = fonts.refItalic ? 'italic' : 'normal';
-    monitor.reference.style.fontSize = (Number.parseInt(fonts.refSize, 10) || Number.parseInt(composition.titleSize, 10) || 65) + 'px';
+    monitor.reference.style.fontSize = (Number.parseInt(fonts.refSize, 10) || 65) + 'px';
     monitor.reference.style.textShadow = fonts.refShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
   }
   if (monitor.version) {
     monitor.version.textContent = slot.versionName || 'ANG DATING BIBLIA';
     monitor.version.style.fontFamily = fonts.version || DEFAULT_ARIAL;
-    monitor.version.style.fontWeight = fonts.verBold ? '700' : '400';
+    monitor.version.style.fontWeight = fonts.verBold ? '600' : '400';
     monitor.version.style.fontStyle = fonts.verItalic ? 'italic' : 'normal';
     monitor.version.style.fontSize = (Number.parseInt(fonts.verSize, 10) || 60) + 'px';
     monitor.version.style.color = '#FFFF00';
@@ -852,7 +856,7 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   }
   if (monitor.verse) {
     monitor.verse.style.fontFamily = fonts.content || DEFAULT_ARIAL;
-    monitor.verse.style.fontWeight = fonts.contentBold ? '700' : '400';
+    monitor.verse.style.fontWeight = fonts.contentBold ? '600' : '400';
     monitor.verse.style.fontStyle = fonts.contentItalic ? 'italic' : 'normal';
     monitor.verse.style.color = '#FFFFFF';
     monitor.verse.querySelectorAll('.word-span').forEach(word => {
@@ -1028,7 +1032,7 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   });
 });
 
-// Right-click any layout mode to open its independent framing and typography controls.
+// Right-click any layout mode to open its independent horizontal/vertical framing controls.
 (function initModeAdjustmentMenu() {
   const menu = document.getElementById('modeAdjustMenu');
   if (!menu) return;
@@ -1037,20 +1041,10 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   const panXRange = document.getElementById('modeAdjustPanX');
   const zoomYRange = document.getElementById('modeAdjustZoomY');
   const panYRange = document.getElementById('modeAdjustPanY');
-  const titleSizeRange = document.getElementById('modeAdjustTitleSize');
   const zoomXValue = document.getElementById('modeAdjustZoomXValue');
   const panXValue = document.getElementById('modeAdjustPanXValue');
   const zoomYValue = document.getElementById('modeAdjustZoomYValue');
   const panYValue = document.getElementById('modeAdjustPanYValue');
-  const titleSizeValue = document.getElementById('modeAdjustTitleSizeValue');
-  const gapRange = document.getElementById('modeAdjustTopGap');
-  const paddingRange = document.getElementById('modeAdjustBoxPadding');
-  const gapValue = document.getElementById('modeAdjustTopGapValue');
-  const paddingValue = document.getElementById('modeAdjustBoxPaddingValue');
-  const letterSpacingRange = document.getElementById('modeAdjustLetterSpacing');
-  const lineSpacingRange = document.getElementById('modeAdjustLineSpacing');
-  const letterSpacingValue = document.getElementById('modeAdjustLetterSpacingValue');
-  const lineSpacingValue = document.getElementById('modeAdjustLineSpacingValue');
   const resetBtn = document.getElementById('modeAdjustReset');
   const closeBtn = document.getElementById('modeAdjustClose');
   let editingMode = 1;
@@ -1061,30 +1055,17 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
     }
     return normalizeModeAdjustment(window.customModeAdjustments[mode], mode);
   }
-  function getEffectiveAdjustment(mode) {
-    return getAdjustment(mode);
-  }
   function formatPan(value) { return (value > 0 ? '+' : '') + value + 'px'; }
   function refreshControls() {
-    const value = getEffectiveAdjustment(editingMode);
+    const value = getAdjustment(editingMode);
     zoomXRange.value = String(value.zoomX);
     panXRange.value = String(value.panX);
     zoomYRange.value = String(value.zoomY);
     panYRange.value = String(value.panY);
-    titleSizeRange.value = String(value.titleSize);
     zoomXValue.textContent = value.zoomX + '%';
     panXValue.textContent = formatPan(value.panX);
     zoomYValue.textContent = value.zoomY + '%';
     panYValue.textContent = formatPan(value.panY);
-    titleSizeValue.textContent = value.titleSize + 'px';
-    gapRange.value = String(value.topGap);
-    paddingRange.value = String(value.boxPadding);
-    gapValue.textContent = value.topGap + 'px';
-    paddingValue.textContent = value.boxPadding + 'px';
-    letterSpacingRange.value = String(value.letterSpacing);
-    lineSpacingRange.value = String(value.lineSpacing);
-    letterSpacingValue.textContent = value.letterSpacing.toFixed(1) + 'px';
-    lineSpacingValue.textContent = value.lineSpacing.toFixed(2);
   }
   function saveAndBroadcast(changedField) {
     const current = getAdjustment(editingMode);
@@ -1093,21 +1074,17 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
     else if (changedField === 'panX') next.panX = panXRange.value;
     else if (changedField === 'zoomY') next.zoomY = zoomYRange.value;
     else if (changedField === 'panY') next.panY = panYRange.value;
-    else if (changedField === 'titleSize') next.titleSize = titleSizeRange.value;
-    else if (changedField === 'topGap') next.topGap = gapRange.value;
-    else if (changedField === 'boxPadding') next.boxPadding = paddingRange.value;
-    else if (changedField === 'letterSpacing') next.letterSpacing = letterSpacingRange.value;
-    else if (changedField === 'lineSpacing') next.lineSpacing = lineSpacingRange.value;
     window.customModeAdjustments[editingMode] = normalizeModeAdjustment(next, editingMode);
-    try { localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments)); localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION); } catch (e) {}
+    try {
+      localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments));
+      localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION);
+    } catch (e) {}
     refreshControls();
     syncState();
   }
   function closeMenu() { menu.classList.remove('open'); }
   function openMenu(mode, event, anchor) {
     editingMode = mode;
-    const typographySection = document.getElementById('modeAdjustTypographySection');
-    if (typographySection) typographySection.hidden = mode !== 1;
     const labels = { 1: '1 Full', 2: '2 Split', 3: '3 Split', 4: '4 Grid' };
     title.textContent = labels[mode] + ' — Layout Settings';
     refreshControls();
@@ -1120,7 +1097,7 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   }
 
   document.querySelectorAll('.mode-pill[data-mode="1"], .mode-pill[data-mode="2"], .mode-pill[data-mode="3"], .mode-pill[data-mode="4"]').forEach(button => {
-    button.title = 'Left-click: select layout  •  Right-click: adjust layout settings';
+    button.title = 'Left-click: select layout  •  Right-click: adjust layout framing';
     button.addEventListener('contextmenu', event => {
       event.preventDefault();
       event.stopPropagation();
@@ -1138,21 +1115,22 @@ document.querySelectorAll('.mode-pill').forEach(pill => {
   panXRange.addEventListener('input', () => saveAndBroadcast('panX'));
   zoomYRange.addEventListener('input', () => saveAndBroadcast('zoomY'));
   panYRange.addEventListener('input', () => saveAndBroadcast('panY'));
-  titleSizeRange.addEventListener('input', () => saveAndBroadcast('titleSize'));
-  gapRange.addEventListener('input', () => saveAndBroadcast('topGap'));
-  paddingRange.addEventListener('input', () => saveAndBroadcast('boxPadding'));
-  letterSpacingRange.addEventListener('input', () => saveAndBroadcast('letterSpacing'));
-  lineSpacingRange.addEventListener('input', () => saveAndBroadcast('lineSpacing'));
   resetBtn.addEventListener('click', () => {
-    // Reset only the selected layout to the current factory defaults.
-    // For 3 Split and 4 Grid this is explicitly 85 / 0 / 85 / +22.
-    const factoryDefaults = getDefaultModeAdjustment(editingMode);
-    window.customModeAdjustments[editingMode] = normalizeModeAdjustment(factoryDefaults, editingMode);
+    // Reset only this layout's framing. Shared typography remains in Box & Margin.
+    const current = getAdjustment(editingMode);
+    const factory = getDefaultModeAdjustment(editingMode);
+    window.customModeAdjustments[editingMode] = normalizeModeAdjustment({
+      ...current,
+      zoomX: factory.zoomX,
+      panX: factory.panX,
+      zoomY: factory.zoomY,
+      panY: factory.panY
+    }, editingMode);
     try {
       localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments));
       localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION);
     } catch (error) {
-      console.warn('Unable to persist layout defaults:', error);
+      console.warn('Unable to persist layout framing defaults:', error);
     }
     refreshControls();
     syncState();
@@ -1653,7 +1631,7 @@ function renderHistorySubmenu(slotIdx) {
   verseHistoryList.slice(0, 20).forEach(h => {
     const row = document.createElement('div');
     row.className = 'ctx-sub-option';
-    row.innerHTML = '<span style="color:#38bdf8; font-weight:700;">' + h.reference + '</span><small style="color:#94a3b8;">' + h.versionName + '</small>';
+    row.innerHTML = '<span style="color:#38bdf8; font-weight:600;">' + h.reference + '</span><small style="color:#94a3b8;">' + h.versionName + '</small>';
     row.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (ctxMenu) ctxMenu.classList.remove('open');
@@ -1732,10 +1710,8 @@ function initFontModalValues() {
 
   const refSizeEl = document.getElementById('fontRefSizeInput');
   const verSizeEl = document.getElementById('fontVerSizeInput');
-  const contentSizeEl = document.getElementById('fontContentSizeInput');
   if (refSizeEl) refSizeEl.value = window.customOutputFonts.refSize || 65;
   if (verSizeEl) verSizeEl.value = window.customOutputFonts.verSize || 60;
-  if (contentSizeEl) contentSizeEl.value = window.customLayoutSettings.maxFontSize || 100;
   document.querySelectorAll('[data-length-font-index]').forEach(input => {
     const index = parseInt(input.dataset.lengthFontIndex, 10);
     input.value = String(window.customLengthFontSizes[index] ?? DEFAULT_LENGTH_FONT_SIZES[index] ?? 24);
@@ -1753,7 +1729,6 @@ if (fontBtn && fontModal) {
   function syncFontsLive() {
     const rSize = parseInt(document.getElementById('fontRefSizeInput')?.value, 10) || 65;
     const vSize = parseInt(document.getElementById('fontVerSizeInput')?.value, 10) || 60;
-    const cSize = parseInt(document.getElementById('fontContentSizeInput')?.value, 10) || 100;
 
     window.customOutputFonts = {
       ref: document.getElementById('fontRefSelect').value,
@@ -1769,16 +1744,10 @@ if (fontBtn && fontModal) {
       contentItalic: document.getElementById('fontContentItalicChk').checked,
       contentShadow: document.getElementById('fontContentShadowChk').checked,
       refSize: rSize,
-      verSize: vSize,
-      contentSize: cSize
+      verSize: vSize
     };
 
-    // Global Max is a shared ceiling; content-length rows select the target size.
-    window.customLayoutSettings.maxFontSize = cSize;
-    const layoutMaxRange = document.getElementById('layoutMaxFontRange');
-    const layoutMaxVal = document.getElementById('layoutMaxFontVal');
-    if (layoutMaxRange) layoutMaxRange.value = cSize;
-    if (layoutMaxVal) layoutMaxVal.textContent = cSize + 'px';
+    refreshVerseLengthFontIndicator();
 
     localStorage.setItem('bible_font_ref', window.customOutputFonts.ref);
     localStorage.setItem('bible_font_ref_bold', String(window.customOutputFonts.refBold));
@@ -1794,7 +1763,6 @@ if (fontBtn && fontModal) {
     localStorage.setItem('bible_font_content_shadow', String(window.customOutputFonts.contentShadow));
     localStorage.setItem('bible_font_ref_size', String(rSize));
     localStorage.setItem('bible_font_ver_size', String(vSize));
-    localStorage.setItem('bible_max_font_size', String(cSize));
     syncState();
   }
 
@@ -1824,9 +1792,8 @@ if (fontBtn && fontModal) {
     document.getElementById('fontContentBoldChk').checked = true;
     document.getElementById('fontContentItalicChk').checked = false;
     document.getElementById('fontContentShadowChk').checked = true;
-    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 65;
-    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 60;
-    if (document.getElementById('fontContentSizeInput')) document.getElementById('fontContentSizeInput').value = 100;
+    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 67;
+    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 55;
     window.customLengthFontSizes = [...DEFAULT_LENGTH_FONT_SIZES];
     document.querySelectorAll('[data-length-font-index]').forEach(input => {
       const index = parseInt(input.dataset.lengthFontIndex, 10);
@@ -1852,12 +1819,28 @@ function refreshVerseLengthFontIndicator() {
   const indicator = document.getElementById('verseLengthFontCurrent');
   if (!indicator) return;
   const currentLength = Array.from(getVerseTextForLength(slots[activeSlotIndex])).length;
-  indicator.textContent = 'Current Content Length: ' + currentLength;
+  let activeRange = null;
+  let activeIndex = -1;
   document.querySelectorAll('.verse-length-font-row').forEach(row => {
     const min = parseInt(row.dataset.min, 10);
     const max = parseInt(row.dataset.max, 10);
-    row.classList.toggle('active-length-range', currentLength >= min && currentLength <= max);
+    const isActive = currentLength >= min && currentLength <= max;
+    row.classList.toggle('active-length-range', isActive);
+    if (isActive) {
+      activeRange = { min, max };
+      activeIndex = parseInt(row.querySelector('[data-length-font-index]')?.dataset.lengthFontIndex, 10);
+    }
   });
+
+  const rowTarget = activeIndex >= 0
+    ? Number(window.customLengthFontSizes[activeIndex] ?? DEFAULT_LENGTH_FONT_SIZES[activeIndex])
+    : null;
+  const rangeLabel = activeRange
+    ? `${activeRange.min}–${activeRange.max === 999 ? '999+' : activeRange.max}`
+    : 'no matching range';
+
+  indicator.textContent = `Current Content Length: ${currentLength}  |  Active: ${rangeLabel}  |  Target: ${rowTarget ?? '—'}px`;
+  indicator.title = 'The highlighted content-length row sets the target font size. Output may auto-fit to a smaller font only when needed to keep all text inside the verse box.';
 }
 document.querySelectorAll('[data-length-font-index]').forEach(input => {
   input.addEventListener('input', () => {
@@ -1870,64 +1853,92 @@ document.querySelectorAll('[data-length-font-index]').forEach(input => {
     next[index] = value;
     window.customLengthFontSizes = next;
     try { localStorage.setItem('bible_length_font_sizes', JSON.stringify(next)); localStorage.setItem('bible_length_font_defaults_version', '2026-11-01-v3'); } catch (e) {}
+    refreshVerseLengthFontIndicator();
     syncState();
   });
 });
 
 // BOX & MARGIN MODAL
+// Shared composition typography/spacing is controlled here and applies to every Output layout.
 if (layoutBtn && layoutModal) {
-  layoutBtn.addEventListener('click', () => {
+  const layoutGapRange = document.getElementById('layoutTopGapRange');
+  const layoutPaddingRange = document.getElementById('layoutBoxPaddingRange');
+  const layoutLetterSpacingRange = document.getElementById('layoutLetterSpacingRange');
+  const layoutLineSpacingRange = document.getElementById('layoutLineSpacingRange');
+
+  function getSharedTypographySettings() {
+    return syncSharedTypographySettingsToLayoutState();
+  }
+  function populateLayoutModal() {
+    const shared = getSharedTypographySettings();
     document.getElementById('layoutScreenMarginRange').value = window.customLayoutSettings.screenMargin;
-    document.getElementById('layoutTopGapRange').value = window.customLayoutSettings.topGap;
-    document.getElementById('layoutBoxPaddingRange').value = window.customLayoutSettings.boxPadding;
-    document.getElementById('layoutMaxFontRange').value = window.customLayoutSettings.maxFontSize;
+    layoutGapRange.value = shared.topGap;
+    layoutPaddingRange.value = shared.boxPadding;
+    layoutLetterSpacingRange.value = shared.letterSpacing;
+    layoutLineSpacingRange.value = shared.lineSpacing;
     document.getElementById('layoutVerseBoxOpacityRange').value = window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY;
     document.getElementById('layoutVerseBoxBlendSelect').value = window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutHideBoxChk').checked = window.customLayoutSettings.hideBoxBg;
 
     document.getElementById('layoutMarginVal').textContent = window.customLayoutSettings.screenMargin + 'px';
-    document.getElementById('layoutTopGapVal').textContent = window.customLayoutSettings.topGap + 'px';
-    document.getElementById('layoutPaddingVal').textContent = window.customLayoutSettings.boxPadding + 'px';
-    document.getElementById('layoutMaxFontVal').textContent = window.customLayoutSettings.maxFontSize + 'px';
+    document.getElementById('layoutTopGapVal').textContent = shared.topGap + 'px';
+    document.getElementById('layoutPaddingVal').textContent = shared.boxPadding + 'px';
+    document.getElementById('layoutLetterSpacingVal').textContent = shared.letterSpacing.toFixed(1) + 'px';
+    document.getElementById('layoutLineSpacingVal').textContent = shared.lineSpacing.toFixed(2);
     document.getElementById('layoutVerseBoxOpacityVal').textContent = (window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY) + '%';
+  }
 
+  layoutBtn.addEventListener('click', () => {
+    populateLayoutModal();
     layoutModal.classList.add('open');
   });
   document.getElementById('layoutCloseX').addEventListener('click', () => layoutModal.classList.remove('open'));
 
   function syncLayoutLive() {
     const m = document.getElementById('layoutScreenMarginRange').value;
-    const g = document.getElementById('layoutTopGapRange').value;
-    const p = document.getElementById('layoutBoxPaddingRange').value;
-    const f = document.getElementById('layoutMaxFontRange').value;
     const opacity = parseInt(document.getElementById('layoutVerseBoxOpacityRange').value, 10);
     const blendModeRaw = document.getElementById('layoutVerseBoxBlendSelect').value;
     const blendMode = VALID_VERSE_BOX_BLEND_MODES.has(blendModeRaw) ? blendModeRaw : DEFAULT_VERSE_BOX_BLEND_MODE;
     const h = document.getElementById('layoutHideBoxChk').checked;
 
+    const currentShared = getSharedTypographySettings();
+    const nextShared = normalizeModeAdjustment({
+      ...currentShared,
+      topGap: layoutGapRange.value,
+      boxPadding: layoutPaddingRange.value,
+      letterSpacing: layoutLetterSpacingRange.value,
+      lineSpacing: layoutLineSpacingRange.value
+    }, 1);
+    // Keep the old per-layout storage container as the single source of truth
+    // for backwards compatibility, but only its 1 Full typography is shared.
+    window.customModeAdjustments[1] = nextShared;
     window.customLayoutSettings = {
+      ...window.customLayoutSettings,
       screenMargin: parseInt(m, 10),
-      topGap: parseInt(g, 10),
-      boxPadding: parseInt(p, 10),
-      maxFontSize: parseInt(f, 10),
+      topGap: nextShared.topGap,
+      boxPadding: nextShared.boxPadding,
+      letterSpacing: nextShared.letterSpacing,
+      lineSpacing: nextShared.lineSpacing,
       hideBoxBg: h,
       verseBoxOpacity: Number.isFinite(opacity) ? Math.min(100, Math.max(0, opacity)) : DEFAULT_VERSE_BOX_OPACITY,
       verseBoxBlendMode: blendMode
     };
 
     document.getElementById('layoutMarginVal').textContent = m + 'px';
-    document.getElementById('layoutTopGapVal').textContent = g + 'px';
-    document.getElementById('layoutPaddingVal').textContent = p + 'px';
-    document.getElementById('layoutMaxFontVal').textContent = f + 'px';
+    document.getElementById('layoutTopGapVal').textContent = nextShared.topGap + 'px';
+    document.getElementById('layoutPaddingVal').textContent = nextShared.boxPadding + 'px';
+    document.getElementById('layoutLetterSpacingVal').textContent = nextShared.letterSpacing.toFixed(1) + 'px';
+    document.getElementById('layoutLineSpacingVal').textContent = nextShared.lineSpacing.toFixed(2);
     document.getElementById('layoutVerseBoxOpacityVal').textContent = window.customLayoutSettings.verseBoxOpacity + '%';
 
     const mainHideToggle = document.getElementById('hideVerseBoxToggle');
     if (mainHideToggle) mainHideToggle.checked = h;
 
     localStorage.setItem('bible_screen_margin', String(window.customLayoutSettings.screenMargin));
-    localStorage.setItem('bible_top_gap', String(window.customLayoutSettings.topGap));
-    localStorage.setItem('bible_box_padding', String(window.customLayoutSettings.boxPadding));
-    localStorage.setItem('bible_max_font_size', String(window.customLayoutSettings.maxFontSize));
+    localStorage.setItem('bible_top_gap', String(nextShared.topGap));
+    localStorage.setItem('bible_box_padding', String(nextShared.boxPadding));
+    localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments));
+    localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION);
     localStorage.setItem('bible_hide_box_bg', String(window.customLayoutSettings.hideBoxBg));
     localStorage.setItem('bible_verse_box_opacity', String(window.customLayoutSettings.verseBoxOpacity));
     localStorage.setItem('bible_verse_box_blend_mode', window.customLayoutSettings.verseBoxBlendMode);
@@ -1941,10 +1952,12 @@ if (layoutBtn && layoutModal) {
     syncLayoutLive();
   });
   document.getElementById('layoutResetBtn').addEventListener('click', () => {
+    const typographyDefaults = getDefaultModeAdjustment(1);
     document.getElementById('layoutScreenMarginRange').value = 39;
-    document.getElementById('layoutTopGapRange').value = 25;
-    document.getElementById('layoutBoxPaddingRange').value = 70;
-    document.getElementById('layoutMaxFontRange').value = 100;
+    layoutGapRange.value = typographyDefaults.topGap;
+    layoutPaddingRange.value = typographyDefaults.boxPadding;
+    layoutLetterSpacingRange.value = typographyDefaults.letterSpacing;
+    layoutLineSpacingRange.value = typographyDefaults.lineSpacing;
     document.getElementById('layoutVerseBoxOpacityRange').value = DEFAULT_VERSE_BOX_OPACITY;
     document.getElementById('layoutVerseBoxBlendSelect').value = DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutHideBoxChk').checked = false;
@@ -2374,7 +2387,7 @@ initOperatorSocket();
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 600;
       text-decoration: none;
       margin-right: 6px;
     }
