@@ -990,14 +990,33 @@
 </script>
 
 
-<style id="OUTPUT_TEXT_VERTICAL_STRETCH_V3">
-  /* Apply the vertical stretch to the actual text elements, not their guard
-     wrappers. The guards intentionally use transform:none for layout safety. */
-  #outputScreen #multiSlotStage .reference-title,
-  #outputScreen #multiSlotStage .version-subtitle,
-  #outputScreen #multiSlotStage .verse-text {
+<style id="OUTPUT_TEXT_VERTICAL_STRETCH_V2">
+  /* The earlier proportional-text rules explicitly set transform:none !important.
+     These selectors are intentionally more specific so the stretch wins in all
+     four layout modes while remaining limited to the text groups. */
+  #outputScreen #multiSlotStage.mode-1 .reference-text-guard,
+  #outputScreen #multiSlotStage.mode-2 .reference-text-guard,
+  #outputScreen #multiSlotStage.mode-3 .reference-text-guard,
+  #outputScreen #multiSlotStage.mode-4 .reference-text-guard,
+  #outputScreen #multiSlotStage.mode-1 .verse-text-guard,
+  #outputScreen #multiSlotStage.mode-2 .verse-text-guard,
+  #outputScreen #multiSlotStage.mode-3 .verse-text-guard,
+  #outputScreen #multiSlotStage.mode-4 .verse-text-guard {
     transform-origin: bottom !important;
     transform: scaleY(1.03) !important;
+  }
+</style>
+
+<style id="OUTPUT_KEEP_EACH_WORD_TOKEN_INTACT_V2">
+  /* Every whitespace-delimited verse token is rendered as one indivisible word.
+     This applies to ALL hyphenated forms (ASCII hyphen, nonbreaking hyphen,
+     en dash, etc.) without maintaining a list of examples. If a token does not
+     fit at the end of a line, the complete token moves to the next line. */
+  #outputScreen #multiSlotStage .verse-text .ndi-word {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
   }
 </style>
 </head>
