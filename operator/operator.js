@@ -125,7 +125,7 @@ window.customLayoutSettings = {
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
 // for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 25, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
@@ -826,7 +826,7 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   if (referenceContainer) referenceContainer.style.marginBottom = topGap + 'px';
 
   const hidden = !!settings.hideBoxBg;
-  const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 100, 10);
+  const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 80, 10);
   const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 100)) / 100;
   const requestedMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'multiply';
   const fill = requestedMode === 'multiply' ? '#8499B8' : (requestedMode === 'darken' ? '#243B5E' : '#0A193C');
