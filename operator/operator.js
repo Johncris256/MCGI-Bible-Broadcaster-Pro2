@@ -125,7 +125,7 @@ window.customLayoutSettings = {
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
 // for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 25, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
