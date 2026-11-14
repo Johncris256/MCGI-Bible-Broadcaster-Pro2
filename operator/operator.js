@@ -38,7 +38,7 @@ const VERSE_LENGTH_RANGES = Object.freeze([
   { min: 601, max: 650 }, { min: 651, max: 999 }
 ]);
 const PREVIOUS_DEFAULT_LENGTH_FONT_SIZES = Object.freeze([68, 69, 68, 59, 56, 50, 48, 43, 42, 28, 29, 27, 27, 24]);
-const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 88, 88, 79, 74, 70, 67, 66, 60, 58, 58, 27, 27, 24]);
+const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 89, 88, 79, 72, 70, 67, 66, 60, 58, 58, 27, 27, 24]);
 function loadLengthFontSizes() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('bible_length_font_sizes') || '[]'); } catch (e) {}
