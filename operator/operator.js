@@ -1,5 +1,5 @@
 
-window.OPERATOR_MONITOR_PREVIEW_VERSION = "2026-11-13-mode-switch-no-preview-reflow-v3";
+window.OPERATOR_MONITOR_PREVIEW_VERSION = "2026-11-14-mini-monitor-font-length-sync-v1";
 window.onerror = function(msg, url, line) {
   console.error("Operator Error: " + msg + " at line " + line);
 };
@@ -38,7 +38,7 @@ const VERSE_LENGTH_RANGES = Object.freeze([
   { min: 601, max: 650 }, { min: 651, max: 999 }
 ]);
 const PREVIOUS_DEFAULT_LENGTH_FONT_SIZES = Object.freeze([68, 69, 68, 59, 56, 50, 48, 43, 42, 28, 29, 27, 27, 24]);
-const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 89, 88, 79, 72, 66, 67, 66, 60, 58, 58, 27, 27, 24]);
+const DEFAULT_LENGTH_FONT_SIZES = Object.freeze([100, 88, 88, 79, 74, 70, 67, 66, 60, 58, 58, 27, 27, 24]);
 function loadLengthFontSizes() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('bible_length_font_sizes') || '[]'); } catch (e) {}
@@ -125,7 +125,7 @@ window.customLayoutSettings = {
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
 // for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, topGap: 25, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
@@ -697,17 +697,19 @@ function setOperatorMonitorBackground(element, bgValue) {
   element.style.backgroundColor = value;
 }
 
-function getOperatorMonitorLengthFontSize(textValue) {
+function getOperatorMonitorLengthFontSize(textValue, configuredValues) {
+  // Use the same range table and the exact values included in the live payload
+  // consumed by Output. This prevents a stale Operator-side array from causing
+  // the mini-monitor to use a different target size than output.html.
   const length = Array.from(String(textValue || '').trim()).length;
-  const ranges = [
-    [1,50],[51,100],[101,150],[151,200],[201,250],[251,300],[301,350],
-    [351,400],[401,450],[451,500],[501,550],[551,600],[601,650],[651,999]
-  ];
   const defaults = DEFAULT_LENGTH_FONT_SIZES;
-  const values = Array.isArray(window.customLengthFontSizes) ? window.customLengthFontSizes : defaults;
-  for (let i = 0; i < ranges.length; i++) {
-    const [min, max] = ranges[i];
-    if (length >= min && (length <= max || i === ranges.length - 1)) {
+  const values = Array.isArray(configuredValues)
+    ? configuredValues
+    : (Array.isArray(window.customLengthFontSizes) ? window.customLengthFontSizes : defaults);
+  for (let i = 0; i < VERSE_LENGTH_RANGES.length; i++) {
+    const { min, max } = VERSE_LENGTH_RANGES[i];
+    const isFinalOpenEndedRange = i === VERSE_LENGTH_RANGES.length - 1;
+    if (length >= min && (length <= max || isFinalOpenEndedRange)) {
       const n = Number(values[i]);
       return Number.isFinite(n) ? Math.min(100, Math.max(14, n)) : defaults[i];
     }
@@ -743,9 +745,12 @@ function fitOperatorMonitorVerseText(slotIdx, settings, fonts, modeSettings) {
   if (!text || !verseContainer) return;
 
   const mode = modeSettings || (window.customModeAdjustments && window.customModeAdjustments[1]) || {};
-  // The selected content-length row is the only configured font-size target.
-  // The fit pass may still step down when the verse cannot fit in its box.
-  const effectiveMax = getOperatorMonitorLengthFontSize(text.textContent);
+  const lengthFontSizes = Array.isArray(settings && settings.lengthFontSizes)
+    ? settings.lengthFontSizes
+    : window.customLengthFontSizes;
+  // Read the same length-font values sent to output.html. The fit pass only
+  // steps down below the configured target when the verse cannot fit.
+  const effectiveMax = getOperatorMonitorLengthFontSize(text.textContent, lengthFontSizes);
   const letterSpacing = Number.isFinite(Number(mode.letterSpacing)) ? Math.min(10, Math.max(-2, Number(mode.letterSpacing))) : 0;
   const lineHeight = Number.isFinite(Number(mode.lineSpacing)) ? Math.min(2.5, Math.max(.8, Number(mode.lineSpacing))) : 1.55;
   text.style.letterSpacing = letterSpacing + 'px';
@@ -785,16 +790,18 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   const composition = modes[1] || {};
   const marginRaw = Number.parseFloat(settings.screenMargin ?? window.customLayoutSettings?.screenMargin ?? 39);
   const margin = Math.min(120, Math.max(0, Number.isFinite(marginRaw) ? marginRaw : 39));
-  const availableWidth = Math.max(1, 1920 - margin * 2);
-  const availableHeight = Math.max(1, 1080 - margin * 2);
-  const stageWidth = Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
-  const stageHeight = stageWidth * 9 / 16;
+  // Match output.js fitOutputStageTo16x9() exactly. The actual Output canvas
+  // uses the full safe-area width and height inside the 1920x1080 screen; it is
+  // not independently letterboxed to another 16:9 rectangle. Using the same
+  // geometry gives the mini-monitor the same text width/height and font fit.
+  const stageWidth = Math.max(1, 1920 - margin * 2);
+  const stageHeight = Math.max(1, 1080 - margin * 2);
   const stage = monitor.stage;
   if (!stage) return;
   stage.style.width = stageWidth + 'px';
   stage.style.height = stageHeight + 'px';
-  stage.style.left = ((1920 - stageWidth) / 2) + 'px';
-  stage.style.top = ((1080 - stageHeight) / 2) + 'px';
+  stage.style.left = margin + 'px';
+  stage.style.top = margin + 'px';
 
   // Keep every mini-monitor as a stable, independent 16:9 slot preview.
   // The 2/3/4-layout grid transform belongs to the Output stage as a whole;
@@ -840,7 +847,7 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   if (monitor.reference) {
     monitor.reference.textContent = slot.reference || 'GENESIS 1:1';
     monitor.reference.style.fontFamily = fonts.ref || DEFAULT_ARIAL;
-    monitor.reference.style.fontWeight = fonts.refBold ? '600' : '400';
+    monitor.reference.style.fontWeight = fonts.refBold ? '700' : '400';
     monitor.reference.style.fontStyle = fonts.refItalic ? 'italic' : 'normal';
     monitor.reference.style.fontSize = (Number.parseInt(fonts.refSize, 10) || 65) + 'px';
     monitor.reference.style.textShadow = fonts.refShadow === false ? 'none' : '2px 3px 6px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9)';
@@ -848,7 +855,7 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   if (monitor.version) {
     monitor.version.textContent = slot.versionName || 'ANG DATING BIBLIA';
     monitor.version.style.fontFamily = fonts.version || DEFAULT_ARIAL;
-    monitor.version.style.fontWeight = fonts.verBold ? '600' : '400';
+    monitor.version.style.fontWeight = fonts.verBold ? '700' : '400';
     monitor.version.style.fontStyle = fonts.verItalic ? 'italic' : 'normal';
     monitor.version.style.fontSize = (Number.parseInt(fonts.verSize, 10) || 60) + 'px';
     monitor.version.style.color = '#FFFF00';
@@ -856,7 +863,7 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   }
   if (monitor.verse) {
     monitor.verse.style.fontFamily = fonts.content || DEFAULT_ARIAL;
-    monitor.verse.style.fontWeight = fonts.contentBold ? '600' : '400';
+    monitor.verse.style.fontWeight = fonts.contentBold ? '700' : '400';
     monitor.verse.style.fontStyle = fonts.contentItalic ? 'italic' : 'normal';
     monitor.verse.style.color = '#FFFFFF';
     monitor.verse.querySelectorAll('.word-span').forEach(word => {
@@ -1631,7 +1638,7 @@ function renderHistorySubmenu(slotIdx) {
   verseHistoryList.slice(0, 20).forEach(h => {
     const row = document.createElement('div');
     row.className = 'ctx-sub-option';
-    row.innerHTML = '<span style="color:#38bdf8; font-weight:600;">' + h.reference + '</span><small style="color:#94a3b8;">' + h.versionName + '</small>';
+    row.innerHTML = '<span style="color:#38bdf8; font-weight:700;">' + h.reference + '</span><small style="color:#94a3b8;">' + h.versionName + '</small>';
     row.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (ctxMenu) ctxMenu.classList.remove('open');
@@ -1792,8 +1799,8 @@ if (fontBtn && fontModal) {
     document.getElementById('fontContentBoldChk').checked = true;
     document.getElementById('fontContentItalicChk').checked = false;
     document.getElementById('fontContentShadowChk').checked = true;
-    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 67;
-    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 55;
+    if (document.getElementById('fontRefSizeInput')) document.getElementById('fontRefSizeInput').value = 65;
+    if (document.getElementById('fontVerSizeInput')) document.getElementById('fontVerSizeInput').value = 60;
     window.customLengthFontSizes = [...DEFAULT_LENGTH_FONT_SIZES];
     document.querySelectorAll('[data-length-font-index]').forEach(input => {
       const index = parseInt(input.dataset.lengthFontIndex, 10);
@@ -2387,7 +2394,7 @@ initOperatorSocket();
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       text-decoration: none;
       margin-right: 6px;
     }
