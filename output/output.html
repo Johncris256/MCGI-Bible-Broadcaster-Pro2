@@ -465,13 +465,13 @@
       text-align: left;
       /* Small default indent separates the reference/translation header
          from the centered verse content without changing the verse layout. */
-      padding-left: 20px;
+      padding-left: 50px;
       margin-bottom: var(--title-verse-gap, 25px);
       flex-shrink: 0;
     }
     .reference-title {
       font-size: 38px;
-      font-weight: 700;
+      font-weight: 600;
       color: #ffffff;
       text-transform: uppercase;
       letter-spacing: 1px;
@@ -479,7 +479,7 @@
     }
     .version-subtitle {
       font-size: 20px;
-      font-weight: 700;
+      font-weight: 600;
       font-style: italic;
       color: #FFFF00;
       text-transform: uppercase;
@@ -797,7 +797,7 @@
     box-shadow: 0 12px 34px rgba(0, 0, 0, .42);
     color: #f8fafc;
     cursor: default;
-    font-weight: 700;
+    font-weight: 600;
   }
   .viewer-translation-main-item:hover,
   .viewer-translation-context-menu.submenu-open .viewer-translation-main-item {
@@ -950,6 +950,36 @@
   }
 </style>
 
+<style id="OUTPUT_VERSE_BOX_BLEND_OVERLAY_V2">
+  /* Fill is nested inside the canvas so it shares every split/grid transform
+     and is clipped by the exact same rounded border as the verse content. */
+  #multiSlotStage .slot-canvas {
+    position: relative !important;
+    background: transparent !important;
+  }
+  #multiSlotStage .slot-canvas > .output-verse-box-blend {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: none;
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+    background-color: #0A193C;
+    opacity: .88;
+    mix-blend-mode: normal;
+    border-radius: inherit;
+  }
+  #multiSlotStage .slot-canvas > .reference-container,
+  #multiSlotStage .slot-canvas > .verse-container {
+    position: relative;
+    z-index: 1;
+  }
+  body.hide-verse-box-active #multiSlotStage .slot-canvas > .output-verse-box-blend {
+    opacity: 0 !important;
+  }
+</style>
+
 <script id="OUTPUT_16X9_EARLY_SCREEN_SCALE">
   // Set the contain-fit before the first paint to avoid a brief full-size crop
   // when Output opens in a portrait or narrow browser window.
@@ -981,7 +1011,7 @@
   </div>
   </div> <!-- /#outputScreen: fixed 1920x1080 composition -->
   <script src="output-animated-backgrounds.js?v=20261108-animated-bg-options-v2"></script>
-  <script src="output.js?v=20261113-fixed-screen-1920x1080-v1"></script>
+  <script src="output.js?v=20261114-verse-box-opacity-canvas-attached-v3"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
 <script src="output-layout-transition.js?v=20261113-fixed-screen-1920x1080-v1"></script>
