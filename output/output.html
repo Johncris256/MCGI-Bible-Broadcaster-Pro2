@@ -474,7 +474,7 @@
       font-weight: 600;
       color: #ffffff;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: -1.7px;
       text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
     }
     .version-subtitle {
@@ -483,7 +483,7 @@
       font-style: italic;
       color: #FFFF00;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: -1.1px;
       margin-top: 2px;
       text-shadow: 2px 3px 6px rgba(0,0,0,0.85);
     }
@@ -989,6 +989,17 @@
   })();
 </script>
 
+
+<style id="OUTPUT_TEXT_VERTICAL_STRETCH_V3">
+  /* Apply the vertical stretch to the actual text elements, not their guard
+     wrappers. The guards intentionally use transform:none for layout safety. */
+  #outputScreen #multiSlotStage .reference-title,
+  #outputScreen #multiSlotStage .version-subtitle,
+  #outputScreen #multiSlotStage .verse-text {
+    transform-origin: bottom !important;
+    transform: scaleY(1.03) !important;
+  }
+</style>
 </head>
 <body>
   <div id="outputScreen" aria-label="1920 by 1080 Bible Output Screen">
