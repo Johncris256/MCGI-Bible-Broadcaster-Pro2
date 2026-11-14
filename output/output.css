@@ -112,3 +112,11 @@ body {
       justify-self: center !important;
     }
 
+/* KEEP EVERY VERSE WORD TOKEN INTACT (including ALL hyphenated words) */
+/* This is generic: any token rendered as .ndi-word stays on one line. */
+#multiSlotStage .verse-text .ndi-word {
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
