@@ -1,73 +1,261 @@
-// === [START] LIVE SERVER MEMORY SESSION ===
+// === [START] LIVE SERVER MEMORY SESSION + GOOGLE SHEETS PERSISTENCE ===
 const SESSION_CACHE_FILE = require('path').join(process.env.BIBLE_BROADCAST_DATA_DIR || __dirname, 'live-session-cache.json');
+const __sessionFs = require('fs');
 let MASTER_SESSION = { localStorageBackup: {}, updatedAt: 0 };
 try {
-  if (require('fs').existsSync(SESSION_CACHE_FILE)) {
-    const loaded = JSON.parse(require('fs').readFileSync(SESSION_CACHE_FILE, 'utf8'));
+  if (__sessionFs.existsSync(SESSION_CACHE_FILE)) {
+    const loaded = JSON.parse(__sessionFs.readFileSync(SESSION_CACHE_FILE, 'utf8'));
     if (loaded && typeof loaded === 'object') MASTER_SESSION = Object.assign(MASTER_SESSION, loaded);
   }
 } catch (e) {}
+if (!MASTER_SESSION.localStorageBackup || typeof MASTER_SESSION.localStorageBackup !== 'object') {
+  MASTER_SESSION.localStorageBackup = {};
+}
+
 function saveMasterSession() {
-  try { require('fs').writeFileSync(SESSION_CACHE_FILE, JSON.stringify(MASTER_SESSION), 'utf8'); } catch (e) {}
+  try {
+    __sessionFs.mkdirSync(require('path').dirname(SESSION_CACHE_FILE), { recursive: true });
+    __sessionFs.writeFileSync(SESSION_CACHE_FILE, JSON.stringify(MASTER_SESSION), 'utf8');
+  } catch (e) {}
 }
 
 const __liveMemoryClients = new Set();
 const __origCreateServer = require('http').createServer;
+const __GOOGLE_SHEETS_LOAD_RETRY_MS = 15000;
+const __GOOGLE_SHEETS_REQUEST_TIMEOUT_MS = 20000;
+const __GOOGLE_SHEETS_FLUSH_DEBOUNCE_MS = 850;
+let __sheetsLoaded = false;
+let __sheetsLoadPromise = null;
+let __sheetsLastLoadAttemptAt = 0;
+let __pendingSheetsBatch = Object.create(null);
+let __sheetsFlushTimer = null;
+let __sheetsFlushInFlight = false;
+let __sheetsRetryDelay = 5000;
+let __sheetsLastWarningAt = 0;
+
+function __googleSheetsConfig() {
+  const url = String(process.env.GOOGLE_SHEETS_WEBAPP_URL || '').trim();
+  const token = String(process.env.GOOGLE_SHEETS_TOKEN || '').trim();
+  return url && token ? { url, token } : null;
+}
+
+function __isPersistableSessionKey(key) {
+  return typeof key === 'string' && /^(bible_|hl_)/.test(key);
+}
+
+async function __googleSheetsRequest(action, extra) {
+  const config = __googleSheetsConfig();
+  if (!config) throw new Error('Google Sheets is not configured.');
+  if (typeof fetch !== 'function') throw new Error('This Node.js runtime does not provide fetch(); use Node.js 18 or newer.');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), __GOOGLE_SHEETS_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(config.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ token: config.token, action }, extra || {})),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error('Google Sheets returned a non-JSON response (HTTP ' + response.status + ').');
+    }
+    if (!response.ok) throw new Error('Google Sheets request failed with HTTP ' + response.status + '.');
+    if (!result || result.ok !== true) {
+      throw new Error(result && result.error ? String(result.error) : 'Google Sheets rejected the ' + action + ' request.');
+    }
+    return result;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function ensureMasterSessionLoadedFromSheets() {
+  if (!__googleSheetsConfig()) return false;
+  if (__sheetsLoaded) return true;
+  if (__sheetsLoadPromise) return __sheetsLoadPromise;
+  if (Date.now() - __sheetsLastLoadAttemptAt < __GOOGLE_SHEETS_LOAD_RETRY_MS) return false;
+
+  __sheetsLastLoadAttemptAt = Date.now();
+  __sheetsLoadPromise = (async () => {
+    try {
+      const result = await __googleSheetsRequest('load');
+      const restored = result.localStorageBackup && typeof result.localStorageBackup === 'object' && !Array.isArray(result.localStorageBackup)
+        ? result.localStorageBackup
+        : {};
+      const safeStorage = {};
+      Object.keys(restored).forEach(key => {
+        if (__isPersistableSessionKey(key) && typeof restored[key] === 'string') safeStorage[key] = restored[key];
+      });
+
+      // Google Sheets is the durable source of truth when configured.
+      MASTER_SESSION.localStorageBackup = safeStorage;
+      MASTER_SESSION.updatedAt = Number(result.updatedAt) || MASTER_SESSION.updatedAt || 0;
+      __sheetsLoaded = true;
+      saveMasterSession();
+      console.log('[Google Sheets] Restored ' + Object.keys(safeStorage).length + ' session key(s).');
+      return true;
+    } catch (error) {
+      const now = Date.now();
+      if (now - __sheetsLastWarningAt > 30000) {
+        console.warn('[Google Sheets] Session restore unavailable; using local fallback for now: ' + error.message);
+        __sheetsLastWarningAt = now;
+      }
+      return false;
+    } finally {
+      __sheetsLoadPromise = null;
+    }
+  })();
+  return __sheetsLoadPromise;
+}
+
+function scheduleGoogleSheetsFlush(delayMs) {
+  if (!__googleSheetsConfig() || __sheetsFlushTimer || __sheetsFlushInFlight || Object.keys(__pendingSheetsBatch).length === 0) return;
+  __sheetsFlushTimer = setTimeout(() => {
+    __sheetsFlushTimer = null;
+    flushGoogleSheetsQueue();
+  }, Math.max(0, delayMs));
+  if (__sheetsFlushTimer && typeof __sheetsFlushTimer.unref === 'function') __sheetsFlushTimer.unref();
+}
+
+function queueGoogleSheetsSave(batch) {
+  if (!__googleSheetsConfig() || !batch || typeof batch !== 'object') return;
+  Object.keys(batch).forEach(key => {
+    if (__isPersistableSessionKey(key)) __pendingSheetsBatch[key] = String(batch[key]);
+  });
+  scheduleGoogleSheetsFlush(__GOOGLE_SHEETS_FLUSH_DEBOUNCE_MS);
+}
+
+async function flushGoogleSheetsQueue() {
+  if (!__googleSheetsConfig() || __sheetsFlushInFlight || Object.keys(__pendingSheetsBatch).length === 0) return;
+  __sheetsFlushInFlight = true;
+  const batch = __pendingSheetsBatch;
+  __pendingSheetsBatch = Object.create(null);
+  try {
+    const result = await __googleSheetsRequest('save', { batch });
+    __sheetsRetryDelay = 5000;
+    console.log('[Google Sheets] Saved ' + Object.keys(batch).length + ' session key(s)' + (result.updatedAt ? ' at ' + new Date(result.updatedAt).toISOString() : '') + '.');
+  } catch (error) {
+    // Keep the newest value for each key. New changes received during the request win.
+    __pendingSheetsBatch = Object.assign(Object.create(null), batch, __pendingSheetsBatch);
+    const now = Date.now();
+    if (now - __sheetsLastWarningAt > 30000) {
+      console.warn('[Google Sheets] Autosave failed; queued data will retry: ' + error.message);
+      __sheetsLastWarningAt = now;
+    }
+    scheduleGoogleSheetsFlush(__sheetsRetryDelay);
+    __sheetsRetryDelay = Math.min(__sheetsRetryDelay * 2, 60000);
+  } finally {
+    __sheetsFlushInFlight = false;
+    if (Object.keys(__pendingSheetsBatch).length > 0) {
+      scheduleGoogleSheetsFlush(__sheetsRetryDelay === 5000 ? 250 : __sheetsRetryDelay);
+    }
+  }
+}
+
 require('http').createServer = function(requestListener) {
   return __origCreateServer.call(this, function(req, res) {
     const parsed = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
+
     if (req.method === 'GET' && parsed.pathname === '/api/live-session-stream') {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+      (async () => {
+        await ensureMasterSessionLoadedFromSheets();
+        if (res.destroyed || res.writableEnded) return;
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.write('data: ' + JSON.stringify({ type: 'init-storage', storage: MASTER_SESSION.localStorageBackup || {} }) + '\n\n');
+        __liveMemoryClients.add(res);
+        req.on('close', () => __liveMemoryClients.delete(res));
+      })().catch(error => {
+        if (!res.headersSent && !res.destroyed) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Session stream unavailable.' }));
+        }
       });
-      res.write('data: ' + JSON.stringify({ type: 'init-storage', storage: MASTER_SESSION.localStorageBackup || {} }) + '\n\n');
-      __liveMemoryClients.add(res);
-      req.on('close', () => __liveMemoryClients.delete(res));
       return;
     }
+
     if (parsed.pathname === '/api/live-session') {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
       if (req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(MASTER_SESSION));
+        (async () => {
+          await ensureMasterSessionLoadedFromSheets();
+          if (res.destroyed || res.writableEnded) return;
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+          res.end(JSON.stringify(MASTER_SESSION));
+        })().catch(error => {
+          if (!res.headersSent && !res.destroyed) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Unable to load live session.' }));
+          }
+        });
+        return;
       }
+
       if (req.method === 'POST') {
         let body = '';
-        req.on('data', c => { body += c; });
-        req.on('end', () => {
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          let data;
           try {
-            const data = JSON.parse(body || '{}');
+            data = JSON.parse(body || '{}');
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON request body.' }));
+          }
+
+          try {
+            await ensureMasterSessionLoadedFromSheets();
             if (!MASTER_SESSION.localStorageBackup) MASTER_SESSION.localStorageBackup = {};
-            if (data.batch && typeof data.batch === 'object') {
-              Object.assign(MASTER_SESSION.localStorageBackup, data.batch);
-              MASTER_SESSION.updatedAt = Date.now();
-              saveMasterSession();
-              const msg = 'data: ' + JSON.stringify({ type: 'storage-sync', clientId: data.clientId || null, batch: data.batch }) + '\n\n';
-              __liveMemoryClients.forEach(c => { try { c.write(msg); } catch (e) {} });
-            } else if (data.key) {
-              MASTER_SESSION.localStorageBackup[data.key] = data.value;
-              MASTER_SESSION.updatedAt = Date.now();
-              saveMasterSession();
-              const msg = 'data: ' + JSON.stringify({ type: 'storage-sync', clientId: data.clientId || null, key: data.key, value: data.value }) + '\n\n';
-              __liveMemoryClients.forEach(c => { try { c.write(msg); } catch (e) {} });
+
+            let changedBatch = null;
+            if (data.batch && typeof data.batch === 'object' && !Array.isArray(data.batch)) {
+              changedBatch = {};
+              Object.keys(data.batch).forEach(key => {
+                MASTER_SESSION.localStorageBackup[key] = String(data.batch[key]);
+                changedBatch[key] = String(data.batch[key]);
+              });
+            } else if (typeof data.key === 'string' && data.key) {
+              MASTER_SESSION.localStorageBackup[data.key] = String(data.value);
+              changedBatch = { [data.key]: String(data.value) };
             }
-          } catch (e) {}
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end('{"ok":true}');
+
+            if (changedBatch && Object.keys(changedBatch).length > 0) {
+              MASTER_SESSION.updatedAt = Date.now();
+              saveMasterSession();
+              queueGoogleSheetsSave(changedBatch);
+              const msg = 'data: ' + JSON.stringify({ type: 'storage-sync', clientId: data.clientId || null, batch: changedBatch }) + '\n\n';
+              __liveMemoryClients.forEach(client => { try { client.write(msg); } catch (e) {} });
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+            res.end(JSON.stringify({ ok: true, queuedForCloudSave: !!__googleSheetsConfig() }));
+          } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Unable to save live session.' }));
+          }
         });
         return;
       }
     }
+
     return requestListener.apply(this, arguments);
   });
 };
-// === [END] LIVE SERVER MEMORY SESSION ===
+// === [END] LIVE SERVER MEMORY SESSION + GOOGLE SHEETS PERSISTENCE ===
 
 // === UNIVERSAL PILOT LOCK & RELAY HOOK START ===
 (function installUniversalPilotHook() {
