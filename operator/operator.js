@@ -4,6 +4,26 @@ window.onerror = function(msg, url, line) {
   console.error("Operator Error: " + msg + " at line " + line);
 };
 
+// The Operator page hydrates its mirrored localStorage from /api/live-session.
+// Wait for that event before initializing verses, otherwise the default verses
+// can overwrite the saved live payload during a refresh.
+const liveStorageHydrationPromise = new Promise(resolve => {
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(fallbackTimer);
+    resolve();
+  };
+  window.addEventListener('bbl-live-storage-hydrated', finish, { once: true });
+  // Safety fallback for a standalone/local page where the hydration bootstrap
+  // is not present. Normal Operator pages dispatch the event on success/failure.
+  const fallbackTimer = setTimeout(finish, 8000);
+});
+
+const VERSE_HISTORY_STORAGE_KEY = 'bible_verse_history_v1';
+const LEGACY_QUICK_HISTORY_STORAGE_KEY = 'bible_quick_verse_history_v1';
+
 const translationsCache = {};
 let translationsMetaList = [];
 let activeSlotIndex = 0;
@@ -383,6 +403,7 @@ function syncState(forcePreviewAnim, options) {
 
   const payload = {
     displayMode: outputDisplayMode,
+    activeSlotIndex,
     slots: serializedSlots,
     allSlots: serializedSlots,
     reference: serializedSlots[0].reference,
@@ -438,6 +459,56 @@ function syncState(forcePreviewAnim, options) {
   } catch(e) {}
 }
 
+function normalizeSavedHistory(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.slice(0, 100).map(item => {
+    if (!item || typeof item !== 'object') return null;
+    const reference = String(item.reference || '').trim();
+    const versionName = String(item.versionName || '').trim();
+    const transId = String(item.transId || '001');
+    if (!reference || !versionName) return null;
+    const bookIndexRaw = Number(item.bookIndex);
+    return {
+      key: String(item.key || (reference + '|' + transId)),
+      reference,
+      versionName,
+      transId,
+      bookIndex: Number.isInteger(bookIndexRaw) && bookIndexRaw >= 0 ? bookIndexRaw : 0,
+      chapter: String(item.chapter || '1'),
+      verse: String(item.verse || '1'),
+      textPreview: String(item.textPreview || ''),
+      time: String(item.time || '')
+    };
+  }).filter(Boolean);
+}
+
+function persistVerseHistory() {
+  try {
+    const serialized = JSON.stringify(verseHistoryList.slice(0, 100));
+    localStorage.setItem(VERSE_HISTORY_STORAGE_KEY, serialized);
+    // Keep the previous Quick Verse History key in sync for existing quick-bar
+    // builds that already read this legacy key.
+    localStorage.setItem(LEGACY_QUICK_HISTORY_STORAGE_KEY, serialized);
+  } catch (err) {
+    console.warn('Unable to save verse history:', err);
+  }
+}
+
+function restoreVerseHistory() {
+  let stored = null;
+  try {
+    const primary = localStorage.getItem(VERSE_HISTORY_STORAGE_KEY);
+    const legacy = localStorage.getItem(LEGACY_QUICK_HISTORY_STORAGE_KEY);
+    stored = primary !== null ? primary : legacy;
+    verseHistoryList = stored ? normalizeSavedHistory(JSON.parse(stored)) : [];
+    // Migrate older quick-history-only storage into the canonical history key.
+    if (primary === null && stored !== null) persistVerseHistory();
+  } catch (err) {
+    verseHistoryList = [];
+    console.warn('Unable to restore verse history:', err);
+  }
+}
+
 function recordHistory(ref, verName, slotIdx) {
   if (!window._workspaceBooted) return;
   const s = slots[slotIdx];
@@ -455,6 +526,7 @@ function recordHistory(ref, verName, slotIdx) {
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   });
   if (verseHistoryList.length > 100) verseHistoryList.pop();
+  persistVerseHistory();
   if (typeof window.refreshHistoryModalList === 'function') window.refreshHistoryModalList();
 }
 
@@ -539,7 +611,10 @@ function updateOutputLiveBadges() {
 }
 
 function focusSlot(slotIdx) {
-  activeSlotIndex = slotIdx;
+  const nextIndex = Number(slotIdx);
+  if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex > 3) return;
+  activeSlotIndex = nextIndex;
+  try { localStorage.setItem('bible_operator_active_slot', String(activeSlotIndex)); } catch (e) {}
   updateWorkspaceUI();
   refreshVerseLengthFontIndicator();
 }
@@ -2047,6 +2122,7 @@ if (historyBtn && historyModal) {
   document.getElementById('histDoneBtn').addEventListener('click', () => historyModal.classList.remove('open'));
   document.getElementById('histClearBtn').addEventListener('click', () => {
     verseHistoryList = [];
+    persistVerseHistory();
     window.refreshHistoryModalList();
   });
 }
@@ -2159,29 +2235,137 @@ function doKeywordSearch() {
   }
 }
 
-// INITIALIZATION
+// INITIALIZATION + AUTOMATIC LAST-SESSION RESTORE
+function readSavedLivePayload() {
+  try {
+    const raw = localStorage.getItem('bible_live_payload');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (err) {
+    console.warn('Unable to read saved Bible session:', err);
+    return null;
+  }
+}
+
+function applyRestoredModeAndFocus(savedPayload) {
+  const modeRaw = Number(savedPayload && savedPayload.displayMode);
+  if (Number.isInteger(modeRaw) && modeRaw >= 1 && modeRaw <= 4) {
+    outputDisplayMode = modeRaw;
+  }
+
+  const payloadFocus = Number(savedPayload && savedPayload.activeSlotIndex);
+  let storedFocus = NaN;
+  try { storedFocus = Number(localStorage.getItem('bible_operator_active_slot')); } catch (e) {}
+  const focusCandidate = Number.isInteger(payloadFocus) && payloadFocus >= 0 && payloadFocus <= 3
+    ? payloadFocus
+    : storedFocus;
+  activeSlotIndex = Number.isInteger(focusCandidate) && focusCandidate >= 0 && focusCandidate <= 3
+    ? focusCandidate
+    : 0;
+
+  document.querySelectorAll('.mode-pill').forEach(pill => {
+    const pillMode = Number(pill.dataset.mode);
+    pill.classList.toggle('active', pillMode === outputDisplayMode);
+  });
+  updateOutputLiveBadges();
+}
+
 async function initWorkspace() {
   try {
-    const res = await fetch('../data/translations-manifest.json');
-    translationsMetaList = await res.json();
-  } catch (e) {
-    translationsMetaList = [{ id: '001', name: 'ANG DATING BIBLIA' }];
+    // index.html dispatches this after its /api/live-session localStorage
+    // hydration completes. The small timeout fallback is only for standalone use.
+    await liveStorageHydrationPromise;
+
+    try {
+      const res = await fetch('../data/translations-manifest.json');
+      translationsMetaList = await res.json();
+    } catch (e) {
+      translationsMetaList = [{ id: '001', name: 'ANG DATING BIBLIA' }];
+    }
+
+    const defaultId = String(translationsMetaList[0]?.id || '001');
+    const defaultName = String(translationsMetaList[0]?.name || 'ANG DATING BIBLIA');
+    await ensureTranslationLoaded(defaultId);
+
+    const savedPayload = readSavedLivePayload();
+    const savedSlots = Array.isArray(savedPayload?.slots)
+      ? savedPayload.slots
+      : (Array.isArray(savedPayload?.allSlots) ? savedPayload.allSlots : []);
+    const hasSavedSession = savedSlots.some(item =>
+      item && typeof item === 'object' &&
+      (item.transId || item.reference || item.version || item.chapter || item.verse)
+    );
+
+    // Restore history before rendering slots. loadSlotVerseData() deliberately
+    // does not record history until the workspace is fully booted.
+    restoreVerseHistory();
+
+    if (hasSavedSession) {
+      const translationIds = new Set([defaultId]);
+      savedSlots.slice(0, 4).forEach(item => {
+        if (item && item.transId) translationIds.add(String(item.transId));
+      });
+      await Promise.all(Array.from(translationIds).map(id => ensureTranslationLoaded(id)));
+
+      for (let i = 0; i < 4; i++) {
+        const saved = savedSlots[i] && typeof savedSlots[i] === 'object' ? savedSlots[i] : {};
+        let transId = String(saved.transId || defaultId);
+        if (!Object.keys(translationsCache[transId] || {}).length && transId !== defaultId) {
+          transId = defaultId;
+        }
+        slots[i].transId = transId;
+        slots[i].versionName = String(saved.version || saved.versionName || defaultName);
+        const bookIndex = Number(saved.bookIndex);
+        slots[i].bookIndex = Number.isInteger(bookIndex) && bookIndex >= 0 ? bookIndex : 0;
+        slots[i].chapter = String(saved.chapter || '1');
+        slots[i].verse = String(saved.verse || String(i + 1));
+        const restoredHighlights = Array.isArray(saved.highlighted) ? saved.highlighted : [];
+        slots[i].highlighted = new Set(restoredHighlights
+          .map(value => Number(value))
+          .filter(value => Number.isInteger(value) && value >= 0 && value < 10000));
+      }
+      applyRestoredModeAndFocus(savedPayload);
+    } else {
+      // First run: preserve the original factory startup state.
+      for (let i = 0; i < 4; i++) {
+        slots[i].transId = defaultId;
+        slots[i].versionName = defaultName;
+        slots[i].bookIndex = 0;
+        slots[i].chapter = '1';
+        slots[i].verse = String(i + 1);
+        slots[i].highlighted = new Set();
+      }
+      activeSlotIndex = 0;
+      outputDisplayMode = 1;
+      document.querySelectorAll('.mode-pill').forEach(pill => {
+        pill.classList.toggle('active', Number(pill.dataset.mode) === 1);
+      });
+      updateOutputLiveBadges();
+    }
+
+    // Render using the canonical translation text, preserving restored highlight
+    // indices. Do not add these restored verses as new history entries.
+    for (let i = 0; i < 4; i++) {
+      await ensureTranslationLoaded(slots[i].transId);
+      loadSlotVerseData(i, false);
+      const maxWordIndex = slots[i].words.length;
+      slots[i].highlighted = new Set(Array.from(slots[i].highlighted).filter(index => index < maxWordIndex));
+      updateSlotVisuals(i);
+    }
+
+    updateWorkspaceUI();
+    if (typeof window.refreshHistoryModalList === 'function') window.refreshHistoryModalList();
+    try { localStorage.setItem('bible_operator_active_slot', String(activeSlotIndex)); } catch (e) {}
+
+    window._workspaceBooted = true;
+    syncState();
+    console.log(hasSavedSession
+      ? '✓ Bible Operator Panel ready — last session restored!'
+      : '✓ Bible Operator Panel ready!');
+  } catch (err) {
+    console.error('Bible Operator initialization failed:', err);
   }
-
-  const defaultId = translationsMetaList[0]?.id || '001';
-  const defaultName = translationsMetaList[0]?.name || 'ANG DATING BIBLIA';
-
-  await ensureTranslationLoaded(defaultId);
-
-  for (let i = 0; i < 4; i++) {
-    slots[i].transId = defaultId;
-    slots[i].versionName = defaultName;
-    loadSlotVerseData(i, false);
-  }
-  updateWorkspaceUI();
-  syncState();
-  window._workspaceBooted = true;
-  console.log("✓ Bible Operator Panel ready!");
 }
 
 initWorkspace();
@@ -2194,7 +2378,8 @@ function initOperatorSocket() {
   window.liveOperatorSocket = new WebSocket(wsProtocol + wsHost);
   window.liveOperatorSocket.onopen = () => {
     console.log('✓ Operator connected to WebSocket Server');
-    syncState();
+    // Do not overwrite a saved session while initialization is still restoring it.
+    if (window._workspaceBooted) syncState();
   };
   window.liveOperatorSocket.onclose = () => setTimeout(initOperatorSocket, 1500);
 }
