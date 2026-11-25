@@ -161,17 +161,36 @@ function fitOutputScreenToViewport(screen) {
 }
 
 function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
-  // Stage geometry is calculated only in the fixed 1920x1080 design space.
-  // Browser size/orientation changes scale the parent screen, never this stage.
+  // The stage is the safe-area layout grid. Each verse box remains a native
+  // 1920x1080 canvas and is uniformly scaled to fit its layout cell. This
+  // prevents the margin from changing text wrapping, font fitting, or shape.
   const margin = Math.max(0, Math.min(120, Number(outerMargin) || 0));
   const screen = document.getElementById('outputScreen');
   fitOutputScreenToViewport(screen);
 
   const width = Math.max(1, 1920 - margin * 2);
-  const height = Math.max(1, 1080 - margin * 2);
+  let height = Math.max(1, 1080 - margin * 2);
+  const gapRaw = parseFloat(getComputedStyle(stage).gap);
+  const gap = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 18;
+  let top = margin;
+
+  // 3 Split / 4 Grid should use the same compact horizontal tile spacing as
+  // the layout design intends. If two 16:9 rows need slightly more height than
+  // the vertical safe area provides, expand the stage and keep it centered
+  // inside the 1920x1080 program frame. This avoids shrinking each tile and
+  // creating a wide visual gap between the left/right canvases.
+  if (displayMode === 3 || displayMode === 4) {
+    const widthFitScale = Math.min((width - gap) / (2 * 1920), 1);
+    const requiredGridHeight = (2 * 1080 * widthFitScale) + gap;
+    if (requiredGridHeight > height) {
+      height = Math.min(1080, requiredGridHeight);
+      top = Math.max(0, (1080 - height) / 2);
+    }
+  }
+
   stage.style.position = 'absolute';
   stage.style.left = margin + 'px';
-  stage.style.top = margin + 'px';
+  stage.style.top = top + 'px';
   stage.style.width = width + 'px';
   stage.style.height = height + 'px';
   stage.style.aspectRatio = '16 / 9';
@@ -187,15 +206,22 @@ function fitOutputStageTo16x9(stage, outerMargin, displayMode) {
       (document.documentElement.clientHeight || window.innerHeight || 1) / 1080
     ))
   ));
-  stage.style.setProperty('--canvas-width', width + 'px');
-  stage.style.setProperty('--canvas-height', height + 'px');
+  // Never shrink the authored canvas itself; only its rendered scale changes.
+  stage.style.setProperty('--canvas-width', '1920px');
+  stage.style.setProperty('--canvas-height', '1080px');
 
-  const gap = parseFloat(getComputedStyle(stage).gap) || 18;
+  const safeWidth = Math.max(1, width - gap);
+  const safeHeight = Math.max(1, height - gap);
   let scale = 1;
-  if (displayMode === 2) {
-    scale = Math.min((width - gap) / (2 * width), 1);
+  if (displayMode === 1) {
+    scale = Math.min(width / 1920, height / 1080, 1);
+  } else if (displayMode === 2) {
+    // Two independent 16:9 canvases share the safe width in one row.
+    scale = Math.min(safeWidth / (2 * 1920), height / 1080, 1);
   } else if (displayMode === 3 || displayMode === 4) {
-    scale = Math.min((width - gap) / (2 * width), (height - gap) / (2 * height), 1);
+    // 3 Split keeps its centered lower canvas the same size as the two above;
+    // 4 Grid uses the same per-cell 16:9 scale.
+    scale = Math.min(safeWidth / (2 * 1920), safeHeight / (2 * 1080), 1);
   }
   stage.style.setProperty('--slot-scale', String(Math.max(0.01, scale)));
 }
@@ -455,7 +481,9 @@ function renderOutputState(data) {
     return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
   };
   const pad = readClampedInt(compositionSettings.boxPadding ?? s.boxPadding, 70, 10, 90);
-  const outerMargin = (s.screenMargin !== undefined) ? parseInt(s.screenMargin, 10) : 39;
+  const outerMarginRaw = modeSettings.screenMargin !== undefined ? modeSettings.screenMargin : s.screenMargin;
+  const outerMarginParsed = Number.parseInt(outerMarginRaw, 10);
+  const outerMargin = Number.isFinite(outerMarginParsed) ? Math.min(120, Math.max(0, outerMarginParsed)) : 39;
   const hideBoxBg = Boolean(s.hideBoxBg);
   const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 25, 0, 120);
   const letterSpacingPx = readClampedFloat(compositionSettings.letterSpacing, 0, -2, 10, 1);
