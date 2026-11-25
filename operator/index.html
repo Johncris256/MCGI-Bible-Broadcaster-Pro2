@@ -1073,9 +1073,22 @@
         <button type="button" class="lan-close-x" id="layoutCloseX">×</button>
       </div>
       <div class="lan-row">
-        <div class="lan-label-col">Outer Screen Margin:</div>
-        <input type="range" id="layoutScreenMarginRange" min="0" max="120" value="39" style="flex:1; accent-color:#38bdf8;">
+        <div class="lan-label-col">Margin Profile:</div>
+        <select id="layoutMarginModeSelect" class="lan-font-select" style="max-width:220px;">
+          <option value="1">1 Full</option>
+          <option value="2">2 Split</option>
+          <option value="3">3 Split</option>
+          <option value="4">4 Grid</option>
+        </select>
+        <span style="font-size:11px; color:#94a3b8;">Independent per layout</span>
+      </div>
+      <div class="lan-row">
+        <div class="lan-label-col" id="layoutMarginLabel">Outer Screen Margin (1 Full):</div>
+        <input type="range" id="layoutScreenMarginRange" min="0" max="120" step="1" value="39" style="flex:1; accent-color:#38bdf8;">
         <span id="layoutMarginVal" style="width:48px; text-align:right; font-weight:800; color:#facc15;">39px</span>
+      </div>
+      <div style="margin:-5px 0 14px 160px; color:#94a3b8; font-size:11px; line-height:1.4;">
+        Scales the complete 16:9 composition uniformly. Text, title, translation label, and verse box keep the same proportions.
       </div>
       <div class="lan-row">
         <div class="lan-label-col">Title-to-Verse Gap:</div>
@@ -1389,7 +1402,7 @@
     </div>
   </div>
 
-  <script src="operator.js?v=20261114-mini-monitor-font-length-sync-v8"></script>
+  <script src="operator.js?v=20261125-uniform-safe-margin-scale-v1"></script>
 
   <script id="QUICK_VERSE_HISTORY_PANEL">
     (function initQuickVerseHistoryPanel() {
