@@ -662,6 +662,8 @@
   #multiSlotStage.mode-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    /* Compact, consistent spacing for the 2x2 and 3-slot pyramid layouts. */
+    gap: 8px !important;
   }
   #multiSlotStage.mode-3 > .render-box:nth-child(3) {
     grid-column: 1 / -1 !important;
@@ -1019,6 +1021,18 @@
     hyphens: none !important;
   }
 </style>
+
+<style id="OUTPUT_INDEPENDENT_SLOT_SPACING_V1">
+  /* Operator-controlled inter-slot gap, measured in the native 1920x1080 frame. */
+  #multiSlotStage {
+    gap: var(--bible-slot-gap, 18px) !important;
+  }
+  #multiSlotStage.mode-3,
+  #multiSlotStage.mode-4 {
+    gap: var(--bible-slot-gap, 18px) !important;
+  }
+</style>
+
 </head>
 <body>
   <div id="outputScreen" aria-label="1920 by 1080 Bible Output Screen">
@@ -1041,10 +1055,10 @@
   </div>
   </div> <!-- /#outputScreen: fixed 1920x1080 composition -->
   <script src="output-animated-backgrounds.js?v=20261108-animated-bg-options-v2"></script>
-  <script src="output.js?v=20261114-verse-box-opacity-canvas-attached-v3"></script>
+  <script src="output.js?v=20261125-tight-3-4-grid-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
-<script src="output-layout-transition.js?v=20261113-fixed-screen-1920x1080-v1"></script>
+<script src="output-layout-transition.js?v=20261125-slot1-crossfade-tight-grid-v1"></script>
 <script id="OUTPUT_OPERATOR_HIGHLIGHT_AUTHORITY_V1">
   (function() {
     const originalRender = window.renderOutputState;
