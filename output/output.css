@@ -120,3 +120,9 @@ body {
   word-break: normal !important;
   hyphens: none !important;
 }
+
+
+/* Operator-controlled independent inter-slot spacing (native 1920x1080 px). */
+#multiSlotStage { gap: var(--bible-slot-gap, 18px) !important; }
+#multiSlotStage.mode-3,
+#multiSlotStage.mode-4 { gap: var(--bible-slot-gap, 8px) !important; }
