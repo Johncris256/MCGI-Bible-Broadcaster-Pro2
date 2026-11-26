@@ -1115,6 +1115,13 @@
         <input type="range" id="layoutVerseBoxOpacityRange" min="0" max="100" step="1" value="100" style="flex:1; accent-color:#38bdf8;">
         <span id="layoutVerseBoxOpacityVal" style="width:48px; text-align:right; font-weight:800; color:#38bdf8;">100%</span>
       </div>
+      <!-- MULTIPLY_INTENSITY_CONTROL_V1 -->
+      <div class="lan-row">
+        <div class="lan-label-col">Multiply Intensity:</div>
+        <input type="range" id="layoutVerseBoxMultiplyIntensityRange" min="100" max="300" step="1" value="100" style="flex:1; accent-color:#38bdf8;">
+        <span id="layoutVerseBoxMultiplyIntensityVal" style="width:48px; text-align:right; font-weight:800; color:#38bdf8;">100%</span>
+      </div>
+      <div style="margin:-7px 0 9px 31%; color:#94a3b8; font-size:11px;">Only affects Multiply blending. 100% preserves the current appearance.</div>
       <div class="lan-row">
         <div class="lan-label-col">Verse Box Blending:</div>
         <select id="layoutVerseBoxBlendSelect" class="lan-font-select" style="max-width:220px;">
@@ -1402,7 +1409,7 @@
     </div>
   </div>
 
-  <script src="operator.js?v=20261125-uniform-safe-margin-scale-v1"></script>
+  <script src="operator.js?v=20261126-multiply-intensity-v1"></script>
 
   <script id="QUICK_VERSE_HISTORY_PANEL">
     (function initQuickVerseHistoryPanel() {
