@@ -68,6 +68,7 @@ window.customLengthFontSizes = loadLengthFontSizes();
 // live background per tile. Multiply preserves the background's color/detail
 // while keeping the verse box visually strong at 100% opacity.
 const DEFAULT_VERSE_BOX_OPACITY = 88;
+const DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY = 100;
 const DEFAULT_VERSE_BOX_BLEND_MODE = 'default';
 const VALID_VERSE_BOX_BLEND_MODES = new Set(['default', 'multiply', 'darken']);
 const VERSE_BOX_DEFAULTS_VERSION_KEY = 'bible_verse_box_defaults_version';
@@ -96,6 +97,17 @@ function readVerseBoxBlendModeSetting() {
   const raw = localStorage.getItem('bible_verse_box_blend_mode');
   return VALID_VERSE_BOX_BLEND_MODES.has(raw) ? raw : DEFAULT_VERSE_BOX_BLEND_MODE;
 }
+function readVerseBoxMultiplyIntensitySetting() {
+  const raw = Number.parseInt(localStorage.getItem('bible_verse_box_multiply_intensity'), 10);
+  return Number.isFinite(raw) ? Math.min(300, Math.max(100, raw)) : DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY;
+}
+function getVerseBoxMultiplyFillColor(intensity) {
+  const raw = Number.parseFloat(intensity);
+  const strength = Math.min(300, Math.max(100, Number.isFinite(raw) ? raw : DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY)) / 100;
+  const base = [0x84, 0x99, 0xB8];
+  return '#' + base.map(channel => Math.round(255 * Math.pow(channel / 255, strength)).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+// MULTIPLY_INTENSITY_CONTROL_V1
 window.customOutputFonts = {
   ref: localStorage.getItem('bible_font_ref') || DEFAULT_ARIAL,
   refBold: localStorage.getItem('bible_font_ref_bold') !== 'false',
@@ -119,7 +131,8 @@ window.customLayoutSettings = {
   boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
   hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
   verseBoxOpacity: readVerseBoxOpacitySetting(),
-  verseBoxBlendMode: readVerseBoxBlendModeSetting()
+  verseBoxBlendMode: readVerseBoxBlendModeSetting(),
+  verseBoxMultiplyIntensity: readVerseBoxMultiplyIntensitySetting()
 };
 
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
@@ -321,7 +334,8 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
     hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
     verseBoxOpacity: readVerseBoxOpacitySetting(),
-    verseBoxBlendMode: readVerseBoxBlendModeSetting()
+    verseBoxBlendMode: readVerseBoxBlendModeSetting(),
+    verseBoxMultiplyIntensity: readVerseBoxMultiplyIntensitySetting()
   };
   window.customModeAdjustments = loadModeAdjustments();
   syncSharedTypographySettingsToLayoutState();
@@ -415,6 +429,7 @@ function syncState(forcePreviewAnim, options) {
       hideBoxBg: window.customLayoutSettings.hideBoxBg || false,
       verseBoxOpacity: window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY,
       verseBoxBlendMode: window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE,
+      verseBoxMultiplyIntensity: window.customLayoutSettings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY,
       modeAdjustments: window.customModeAdjustments,
       lengthFontSizes: window.customLengthFontSizes
     }
@@ -840,7 +855,9 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   const opacityRaw = Number.parseInt(settings.verseBoxOpacity ?? 100, 10);
   const opacity = Math.min(100, Math.max(0, Number.isFinite(opacityRaw) ? opacityRaw : 100)) / 100;
   const requestedMode = ['default', 'multiply', 'darken'].includes(settings.verseBoxBlendMode) ? settings.verseBoxBlendMode : 'multiply';
-  const fill = requestedMode === 'multiply' ? '#8499B8' : (requestedMode === 'darken' ? '#243B5E' : '#0A193C');
+  const multiplyIntensityRaw = Number.parseInt(settings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY, 10);
+  const multiplyIntensity = Math.min(300, Math.max(100, Number.isFinite(multiplyIntensityRaw) ? multiplyIntensityRaw : DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY));
+  const fill = requestedMode === 'multiply' ? getVerseBoxMultiplyFillColor(multiplyIntensity) : (requestedMode === 'darken' ? '#243B5E' : '#0A193C');
   if (monitor.blend) {
     monitor.blend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
     monitor.blend.style.backgroundColor = fill;
@@ -1915,6 +1932,7 @@ if (layoutBtn && layoutModal) {
     layoutLineSpacingRange.value = shared.lineSpacing;
     document.getElementById('layoutVerseBoxOpacityRange').value = window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY;
     document.getElementById('layoutVerseBoxBlendSelect').value = window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE;
+    document.getElementById('layoutVerseBoxMultiplyIntensityRange').value = String(window.customLayoutSettings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY);
     document.getElementById('layoutHideBoxChk').checked = window.customLayoutSettings.hideBoxBg;
 
     document.getElementById('layoutTopGapVal').textContent = shared.topGap + 'px';
@@ -1922,6 +1940,7 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutLetterSpacingVal').textContent = shared.letterSpacing.toFixed(1) + 'px';
     document.getElementById('layoutLineSpacingVal').textContent = shared.lineSpacing.toFixed(2);
     document.getElementById('layoutVerseBoxOpacityVal').textContent = (window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY) + '%';
+    document.getElementById('layoutVerseBoxMultiplyIntensityVal').textContent = (window.customLayoutSettings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY) + '%';
   }
 
   layoutBtn.addEventListener('click', () => {
@@ -1935,6 +1954,8 @@ if (layoutBtn && layoutModal) {
     const opacity = parseInt(document.getElementById('layoutVerseBoxOpacityRange').value, 10);
     const blendModeRaw = document.getElementById('layoutVerseBoxBlendSelect').value;
     const blendMode = VALID_VERSE_BOX_BLEND_MODES.has(blendModeRaw) ? blendModeRaw : DEFAULT_VERSE_BOX_BLEND_MODE;
+    const intensityRaw = Number.parseInt(document.getElementById('layoutVerseBoxMultiplyIntensityRange').value, 10);
+    const multiplyIntensity = Math.min(300, Math.max(100, Number.isFinite(intensityRaw) ? intensityRaw : DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY));
     const h = document.getElementById('layoutHideBoxChk').checked;
 
     const currentMarginAdjustment = normalizeModeAdjustment(window.customModeAdjustments[marginEditingMode], marginEditingMode);
@@ -1963,7 +1984,8 @@ if (layoutBtn && layoutModal) {
       lineSpacing: nextShared.lineSpacing,
       hideBoxBg: h,
       verseBoxOpacity: Number.isFinite(opacity) ? Math.min(100, Math.max(0, opacity)) : DEFAULT_VERSE_BOX_OPACITY,
-      verseBoxBlendMode: blendMode
+      verseBoxBlendMode: blendMode,
+      verseBoxMultiplyIntensity: multiplyIntensity
     };
 
     document.getElementById('layoutMarginVal').textContent = m + 'px';
@@ -1973,6 +1995,7 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutLetterSpacingVal').textContent = nextShared.letterSpacing.toFixed(1) + 'px';
     document.getElementById('layoutLineSpacingVal').textContent = nextShared.lineSpacing.toFixed(2);
     document.getElementById('layoutVerseBoxOpacityVal').textContent = window.customLayoutSettings.verseBoxOpacity + '%';
+    document.getElementById('layoutVerseBoxMultiplyIntensityVal').textContent = multiplyIntensity + '%';
 
     const mainHideToggle = document.getElementById('hideVerseBoxToggle');
     if (mainHideToggle) mainHideToggle.checked = h;
@@ -1987,6 +2010,7 @@ if (layoutBtn && layoutModal) {
     localStorage.setItem('bible_hide_box_bg', String(window.customLayoutSettings.hideBoxBg));
     localStorage.setItem('bible_verse_box_opacity', String(window.customLayoutSettings.verseBoxOpacity));
     localStorage.setItem('bible_verse_box_blend_mode', window.customLayoutSettings.verseBoxBlendMode);
+    localStorage.setItem('bible_verse_box_multiply_intensity', String(window.customLayoutSettings.verseBoxMultiplyIntensity));
     syncState();
   }
 
@@ -2009,6 +2033,7 @@ if (layoutBtn && layoutModal) {
     layoutLineSpacingRange.value = typographyDefaults.lineSpacing;
     document.getElementById('layoutVerseBoxOpacityRange').value = DEFAULT_VERSE_BOX_OPACITY;
     document.getElementById('layoutVerseBoxBlendSelect').value = DEFAULT_VERSE_BOX_BLEND_MODE;
+    document.getElementById('layoutVerseBoxMultiplyIntensityRange').value = String(DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY);
     document.getElementById('layoutHideBoxChk').checked = false;
     syncLayoutLive();
   });
