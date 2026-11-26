@@ -1033,6 +1033,30 @@
   }
 </style>
 
+  <style id="OUTPUT_EXTERNAL_BLEND_COMPOSITING_V1">
+    /* Keep blend surfaces beside the animated background and the verse stage.
+       A mix-blend-mode child inside transformed .slot-canvas cannot see the
+       background backdrop outside that canvas stacking context. */
+    #outputScreen > .output-verse-box-blend {
+      position: absolute !important;
+      display: none;
+      z-index: 1 !important;
+      pointer-events: none !important;
+      transform: none !important;
+      background-color: #0A193C;
+      mix-blend-mode: normal;
+    }
+    #outputScreen > #outputAnimatedBackgroundLayer {
+      z-index: 0 !important;
+    }
+    #outputScreen > #multiSlotStage {
+      z-index: 2 !important;
+    }
+    body.hide-verse-box-active #outputScreen > .output-verse-box-blend {
+      opacity: 0 !important;
+    }
+  </style>
+
 </head>
 <body>
   <div id="outputScreen" aria-label="1920 by 1080 Bible Output Screen">
@@ -1055,7 +1079,7 @@
   </div>
   </div> <!-- /#outputScreen: fixed 1920x1080 composition -->
   <script src="output-animated-backgrounds.js?v=20261108-animated-bg-options-v2"></script>
-  <script src="output.js?v=20261125-tight-3-4-grid-v1"></script>
+  <script src="output.js?v=20261126-external-blend-compositing-v1"></script>
   <script src="output-translation.js?v=20261104-viewer-translation-v1"></script>
   <script src="output-viewer-translation.js?v=20261104-local-viewer-translation-v1"></script>
 <script src="output-layout-transition.js?v=20261125-slot1-crossfade-tight-grid-v1"></script>
