@@ -271,11 +271,19 @@
     }
   }
 
-  function createExitGhost(box, stageScale) {
+  function createExitGhost(box, stageScale, motionElement) {
     // Clone the complete render-box, not the already-transformed canvas alone.
     // This preserves the canvas' own computed font/layout scale in the snapshot.
     const rect = box.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
+    // Optional motion geometry lets the 1 Full -> 2 Split snapshot use
+    // the actual canvas rectangle while retaining the wrapper clone.
+    const measuredMotionRect = motionElement && typeof motionElement.getBoundingClientRect === 'function'
+      ? motionElement.getBoundingClientRect()
+      : rect;
+    const motionRect = measuredMotionRect && measuredMotionRect.width && measuredMotionRect.height
+      ? measuredMotionRect
+      : rect;
 
     const ghost = box.cloneNode(true);
     copyComputedStyleTree(box, ghost);
@@ -307,7 +315,7 @@
       element.style.setProperty('animation', 'none', 'important');
     });
 
-    return { element: ghost, rect, stageScale };
+    return { element: ghost, rect: motionRect, stageScale };
   }
 
   function removeGhosts(ghosts) {
@@ -567,7 +575,7 @@
     // prevents the stage's mode-specific transform from causing a first-frame
     // vertical jump before Tile 2 enters.
     const reverseOneToTwoGhost = (oldMode === 1 && nextMode === 2 && oldBoxes[0])
-      ? createExitGhost(oldBoxes[0], oldStageScale)
+      ? createExitGhost(oldBoxes[0], oldStageScale, getCanvas(oldBoxes[0]))
       : null;
 
     // Keep the old canvas of each removed slot visible until its exit completes.
