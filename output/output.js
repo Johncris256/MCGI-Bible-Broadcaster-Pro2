@@ -407,7 +407,16 @@ function applyOutputBackground(backgroundValue) {
   lastOutputBackgroundMode = backgroundValue || 'default';
 }
 
+// OUTPUT_EXTERNAL_BLEND_COMPOSITING_V1
+// Keep each blend surface as a direct child of #outputScreen. The slot canvas
+// is transformed and therefore forms its own stacking context; nesting a
+// mix-blend-mode layer inside it prevents that layer from blending with the
+// actual background. This mirrors the Operator preview: background, blend,
+// and verse stage are sibling layers in one compositing context.
 const OUTPUT_VERSE_BOX_BLEND_CLASS = 'output-verse-box-blend';
+let outputVerseBoxBlendSyncFrame = null;
+let outputVerseBoxBlendSyncUntil = 0;
+let outputVerseBoxBlendLatestAppearance = { opacity: 88, blendMode: 'default', fill: '#0A193C', hidden: false };
 
 function getOutputVerseBoxAppearance(settings) {
   const s = settings || {};
@@ -422,37 +431,145 @@ function getOutputVerseBoxAppearance(settings) {
   return { opacity, blendMode, fill, hidden: !!s.hideBoxBg };
 }
 
+function getOutputVerseBoxBlendTargets(stage) {
+  const targets = new Map();
+  const liveBoxes = Array.from(stage.children).filter(box =>
+    box && box.classList && box.classList.contains('render-box')
+  );
+
+  liveBoxes.forEach((box, index) => {
+    // Store the index on the element so the transition engine's cloned ghost
+    // retains the same identity while it travels out of or into the layout.
+    box.dataset.slotBox = String(index);
+    targets.set(index, box);
+  });
+
+  // During FLIP transitions the visual tile may be a fixed ghost clone rather
+  // than the live canvas. Prefer that clone so the blend stays attached to the
+  // tile throughout 1->2, 2->1, and the other entering/exiting transitions.
+  document.querySelectorAll('[data-layout-exit-ghost][data-slot-box]').forEach(ghost => {
+    const index = Number.parseInt(ghost.getAttribute('data-slot-box'), 10);
+    if (Number.isInteger(index) && index >= 0) targets.set(index, ghost);
+  });
+
+  return targets;
+}
+
+function syncOutputVerseBoxBlendOverlayPositions(appearance) {
+  const screen = document.getElementById('outputScreen');
+  const stage = document.getElementById('multiSlotStage');
+  if (!screen || !stage) return;
+
+  const screenRect = screen.getBoundingClientRect();
+  const screenStyle = window.getComputedStyle(screen);
+  const cssScale = Number.parseFloat(screenStyle.getPropertyValue('--output-screen-scale'));
+  const screenScale = Math.max(0.0001, Number.isFinite(cssScale) && cssScale > 0
+    ? cssScale
+    : (screenRect.width / 1920) || 1);
+  const targets = getOutputVerseBoxBlendTargets(stage);
+  const validIndices = new Set();
+
+  targets.forEach((box, index) => {
+    const canvas = box.querySelector('.slot-canvas');
+    if (!canvas) return;
+
+    validIndices.add(index);
+    let overlay = Array.from(screen.children).find(child =>
+      child.classList && child.classList.contains(OUTPUT_VERSE_BOX_BLEND_CLASS) &&
+      child.getAttribute('data-slot-index') === String(index)
+    );
+
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = OUTPUT_VERSE_BOX_BLEND_CLASS;
+      overlay.setAttribute('data-slot-index', String(index));
+      overlay.setAttribute('aria-hidden', 'true');
+      screen.appendChild(overlay);
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      overlay.style.display = 'none';
+      return;
+    }
+
+    const left = (rect.left - screenRect.left) / screenScale;
+    const top = (rect.top - screenRect.top) / screenScale;
+    const width = rect.width / screenScale;
+    const height = rect.height / screenScale;
+    const canvasWidth = canvas.offsetWidth || 1920;
+    const canvasHeight = canvas.offsetHeight || 1080;
+    const localScaleX = width / canvasWidth;
+    const localScaleY = height / canvasHeight;
+    const canvasStyle = window.getComputedStyle(canvas);
+    const radius = Number.parseFloat(canvasStyle.borderTopLeftRadius) || 0;
+
+    overlay.style.position = 'absolute';
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
+    overlay.style.width = width + 'px';
+    overlay.style.height = height + 'px';
+    overlay.style.borderRadius = (radius * localScaleX) + 'px / ' + (radius * localScaleY) + 'px';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.backgroundColor = appearance.fill;
+    overlay.style.opacity = String(appearance.opacity / 100);
+    overlay.style.mixBlendMode = appearance.blendMode === 'default' ? 'normal' : appearance.blendMode;
+    overlay.style.display = appearance.hidden || box.classList.contains('transparent-verse-box') || appearance.opacity <= 0
+      ? 'none'
+      : 'block';
+  });
+
+  // Remove stale overlay elements after a removed tile's exit ghost is gone.
+  Array.from(screen.children).forEach(child => {
+    if (!child.classList || !child.classList.contains(OUTPUT_VERSE_BOX_BLEND_CLASS)) return;
+    const index = Number.parseInt(child.getAttribute('data-slot-index'), 10);
+    if (!validIndices.has(index)) child.remove();
+  });
+}
+
+function scheduleOutputVerseBoxBlendOverlaySync(appearance) {
+  outputVerseBoxBlendLatestAppearance = appearance;
+  const now = (window.performance && performance.now) ? performance.now() : Date.now();
+  const refreshWindow = window.__bibleLayoutTransitionInProgress ? 760 : 260;
+  outputVerseBoxBlendSyncUntil = Math.max(outputVerseBoxBlendSyncUntil, now + refreshWindow);
+  if (outputVerseBoxBlendSyncFrame !== null) return;
+
+  const raf = window.requestAnimationFrame
+    ? window.requestAnimationFrame.bind(window)
+    : callback => window.setTimeout(callback, 16);
+
+  const tick = () => {
+    outputVerseBoxBlendSyncFrame = null;
+    syncOutputVerseBoxBlendOverlayPositions(outputVerseBoxBlendLatestAppearance);
+    const current = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (window.__bibleLayoutTransitionInProgress || current < outputVerseBoxBlendSyncUntil) {
+      outputVerseBoxBlendSyncFrame = raf(tick);
+    }
+  };
+
+  outputVerseBoxBlendSyncFrame = raf(tick);
+}
+
 function syncOutputVerseBoxBlendOverlays(settings) {
   const stage = document.getElementById('multiSlotStage');
   if (!stage) return;
 
   const appearance = getOutputVerseBoxAppearance(settings);
-  const boxes = Array.from(stage.children).filter(box => box.classList && box.classList.contains('render-box'));
 
-  boxes.forEach(box => {
-    const canvas = box.querySelector('.slot-canvas');
-    if (!canvas) return;
+  // Remove legacy blend children from the transformed canvas. Leaving one here
+  // would create a second, unblended grey layer below the new external overlay.
+  stage.querySelectorAll('.slot-canvas > .output-verse-box-blend').forEach(node => node.remove());
+  document.querySelectorAll('[data-layout-exit-ghost] .slot-canvas > .output-verse-box-blend')
+    .forEach(node => node.remove());
 
-    // Keep the fill layer INSIDE its own transformed canvas. This makes it
-    // inherit the exact same scale, X/Y zoom, pan, rounded clipping, and layout
-    // transitions as the border, including the centered lower tile in 3-Split.
-    let overlay = Array.from(canvas.children).find(child =>
-      child.classList && child.classList.contains(OUTPUT_VERSE_BOX_BLEND_CLASS)
-    );
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.className = OUTPUT_VERSE_BOX_BLEND_CLASS;
-      overlay.setAttribute('aria-hidden', 'true');
-      canvas.insertBefore(overlay, canvas.firstChild);
-    }
-
-    const isHidden = appearance.hidden || box.classList.contains('transparent-verse-box') || appearance.opacity <= 0;
-    overlay.style.backgroundColor = appearance.fill;
-    overlay.style.opacity = String(appearance.opacity / 100);
-    overlay.style.mixBlendMode = appearance.blendMode === 'default' ? 'normal' : appearance.blendMode;
-    overlay.style.display = isHidden ? 'none' : 'block';
-  });
+  syncOutputVerseBoxBlendOverlayPositions(appearance);
+  scheduleOutputVerseBoxBlendOverlaySync(appearance);
 }
+
+window.addEventListener('resize', () => {
+  const data = (typeof lastReceivedData !== 'undefined' && lastReceivedData) ? lastReceivedData : null;
+  syncOutputVerseBoxBlendOverlays(data && data.settings ? data.settings : {});
+}, { passive: true });
 
 function renderOutputState(data) {
   if (!data) return;
@@ -525,6 +642,7 @@ function renderOutputState(data) {
 
   slotsList.forEach((slotData, sIdx) => {
     const boxEl = stage.children[sIdx];
+    boxEl.dataset.slotBox = String(sIdx);
     const canvasEl = boxEl.querySelector('.slot-canvas');
     if (canvasEl) {
       canvasEl.style.padding = `${pad}px ${pad + 8}px`;
