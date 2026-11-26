@@ -418,6 +418,14 @@ let outputVerseBoxBlendSyncFrame = null;
 let outputVerseBoxBlendSyncUntil = 0;
 let outputVerseBoxBlendLatestAppearance = { opacity: 88, blendMode: 'default', fill: '#0A193C', hidden: false };
 
+function getOutputVerseBoxMultiplyFillColor(intensity) {
+  const raw = Number.parseFloat(intensity);
+  const strength = Math.min(300, Math.max(100, Number.isFinite(raw) ? raw : 100)) / 100;
+  const base = [0x84, 0x99, 0xB8];
+  return '#' + base.map(channel => Math.round(255 * Math.pow(channel / 255, strength)).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// MULTIPLY_INTENSITY_OUTPUT_V1
 function getOutputVerseBoxAppearance(settings) {
   const s = settings || {};
   const opacityRaw = Number.parseInt(s.verseBoxOpacity ?? 88, 10);
@@ -425,10 +433,12 @@ function getOutputVerseBoxAppearance(settings) {
   const blendMode = ['default', 'multiply', 'darken'].includes(s.verseBoxBlendMode)
     ? s.verseBoxBlendMode
     : 'default';
+  const intensityRaw = Number.parseInt(s.verseBoxMultiplyIntensity ?? 100, 10);
+  const multiplyIntensity = Math.min(300, Math.max(100, Number.isFinite(intensityRaw) ? intensityRaw : 100));
   const fill = blendMode === 'multiply'
-    ? '#8499B8'
+    ? getOutputVerseBoxMultiplyFillColor(multiplyIntensity)
     : (blendMode === 'darken' ? '#243B5E' : '#0A193C');
-  return { opacity, blendMode, fill, hidden: !!s.hideBoxBg };
+  return { opacity, blendMode, fill, hidden: !!s.hideBoxBg, multiplyIntensity };
 }
 
 function getOutputVerseBoxBlendTargets(stage) {
