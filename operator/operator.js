@@ -67,8 +67,8 @@ window.customLengthFontSizes = loadLengthFontSizes();
 // Verse box appearance defaults: full-strength navy fill blended with the
 // live background per tile. Multiply preserves the background's color/detail
 // while keeping the verse box visually strong at 100% opacity.
-const DEFAULT_VERSE_BOX_OPACITY = 80;
-const DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY = 180;
+const DEFAULT_VERSE_BOX_OPACITY = 100;
+const DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY = 200;
 const DEFAULT_VERSE_BOX_BLEND_MODE = 'multiply';
 const VALID_VERSE_BOX_BLEND_MODES = new Set(['default', 'multiply', 'darken']);
 const VERSE_BOX_DEFAULTS_VERSION_KEY = 'bible_verse_box_defaults_version';
@@ -138,7 +138,7 @@ window.customLayoutSettings = {
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
 // for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, screenMargin: 39, topGap: 20, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, screenMargin: 39, topGap: 40, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, screenMargin: 39, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, screenMargin: 39, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, screenMargin: 39, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
