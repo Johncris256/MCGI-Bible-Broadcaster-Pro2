@@ -130,6 +130,7 @@ window.customLayoutSettings = {
   screenMargin: parseInt(localStorage.getItem('bible_screen_margin') || '39', 10),
   boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
   hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
+    showGoldStroke: localStorage.getItem('bible_gold_stroke_enabled') !== 'false',
   verseBoxOpacity: readVerseBoxOpacitySetting(),
   verseBoxBlendMode: readVerseBoxBlendModeSetting(),
   verseBoxMultiplyIntensity: readVerseBoxMultiplyIntensitySetting()
@@ -138,7 +139,7 @@ window.customLayoutSettings = {
 // Per-layout framing defaults. Shared typography stays in the 1 Full composition
 // for backwards compatibility, but its controls now live in the Box & Margin modal.
 const DEFAULT_MODE_ADJUSTMENTS = Object.freeze({
-  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, screenMargin: 39, topGap: 40, boxPadding: 55, letterSpacing: -1.1, lineSpacing: 1.20 }),
+  1: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: 0, screenMargin: 39, topGap: 40, boxPadding: 49, letterSpacing: -1.1, lineSpacing: 1.20 }),
   2: Object.freeze({ zoomX: 100, panX: 0, zoomY: 100, panY: -82, screenMargin: 39, topGap: 30, boxPadding: 59, letterSpacing: -1.1, lineSpacing: 1.20 }),
   3: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, screenMargin: 39, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20}),
   4: Object.freeze({ zoomX: 85, panX: 0, zoomY: 85, panY: 22, screenMargin: 39, topGap: 50, boxPadding: 65, letterSpacing: -1.0, lineSpacing: 1.20})
@@ -333,6 +334,7 @@ window.addEventListener('bbl-live-storage-hydrated', () => {
     topGap: parseInt(localStorage.getItem('bible_top_gap') || '25', 10),
     boxPadding: parseInt(localStorage.getItem('bible_box_padding') || '70', 10),
     hideBoxBg: localStorage.getItem('bible_hide_box_bg') === 'true',
+  showGoldStroke: localStorage.getItem('bible_gold_stroke_enabled') !== 'false',
     verseBoxOpacity: readVerseBoxOpacitySetting(),
     verseBoxBlendMode: readVerseBoxBlendModeSetting(),
     verseBoxMultiplyIntensity: readVerseBoxMultiplyIntensitySetting()
@@ -427,6 +429,7 @@ function syncState(forcePreviewAnim, options) {
       lineSpacing: window.customLayoutSettings.lineSpacing ?? 1.20,
       screenMargin: window.customModeAdjustments[outputDisplayMode]?.screenMargin ?? window.customLayoutSettings.screenMargin ?? 39,
       hideBoxBg: window.customLayoutSettings.hideBoxBg || false,
+      showGoldStroke: window.customLayoutSettings.showGoldStroke !== false,
       verseBoxOpacity: window.customLayoutSettings.verseBoxOpacity ?? DEFAULT_VERSE_BOX_OPACITY,
       verseBoxBlendMode: window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE,
       verseBoxMultiplyIntensity: window.customLayoutSettings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY,
@@ -867,9 +870,14 @@ function syncOperatorSlotMonitor(slotIdx, bgValue, payload) {
   if (monitor.blend) {
     monitor.blend.style.display = hidden || opacity <= 0 ? 'none' : 'block';
   }
-  stage.style.border = hidden ? 'none' : '2px solid #A78336';
+  const showGoldStroke = settings.showGoldStroke !== false;
+  stage.style.border = hidden ? 'none' : (showGoldStroke ? '2px solid #A78336' : '2px solid transparent');
   stage.style.borderRadius = hidden ? '0px' : '64px';
-  stage.style.boxShadow = hidden ? 'none' : '0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20)';
+  stage.style.boxShadow = hidden
+    ? 'none'
+    : (showGoldStroke
+      ? '0 10px 30px rgba(0,0,0,.60), inset 0 0 0 1px rgba(240,213,150,.20)'
+      : '0 10px 30px rgba(0,0,0,.60)');
 
   setOperatorMonitorBackground(monitor.background, bgValue || data.bg || "url('/images/Bible%20BG.jpg')");
   if (monitor.reference) {
@@ -1934,6 +1942,7 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutVerseBoxBlendSelect').value = window.customLayoutSettings.verseBoxBlendMode || DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutVerseBoxMultiplyIntensityRange').value = String(window.customLayoutSettings.verseBoxMultiplyIntensity ?? DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY);
     document.getElementById('layoutHideBoxChk').checked = window.customLayoutSettings.hideBoxBg;
+    document.getElementById('layoutGoldStrokeChk').checked = window.customLayoutSettings.showGoldStroke !== false;
 
     document.getElementById('layoutTopGapVal').textContent = shared.topGap + 'px';
     document.getElementById('layoutPaddingVal').textContent = shared.boxPadding + 'px';
@@ -1957,6 +1966,7 @@ if (layoutBtn && layoutModal) {
     const intensityRaw = Number.parseInt(document.getElementById('layoutVerseBoxMultiplyIntensityRange').value, 10);
     const multiplyIntensity = Math.min(300, Math.max(100, Number.isFinite(intensityRaw) ? intensityRaw : DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY));
     const h = document.getElementById('layoutHideBoxChk').checked;
+    const showGoldStroke = document.getElementById('layoutGoldStrokeChk').checked;
 
     const currentMarginAdjustment = normalizeModeAdjustment(window.customModeAdjustments[marginEditingMode], marginEditingMode);
     window.customModeAdjustments[marginEditingMode] = normalizeModeAdjustment({
@@ -1983,6 +1993,7 @@ if (layoutBtn && layoutModal) {
       letterSpacing: nextShared.letterSpacing,
       lineSpacing: nextShared.lineSpacing,
       hideBoxBg: h,
+      showGoldStroke,
       verseBoxOpacity: Number.isFinite(opacity) ? Math.min(100, Math.max(0, opacity)) : DEFAULT_VERSE_BOX_OPACITY,
       verseBoxBlendMode: blendMode,
       verseBoxMultiplyIntensity: multiplyIntensity
@@ -2008,6 +2019,7 @@ if (layoutBtn && layoutModal) {
     localStorage.setItem('bible_mode_adjustments', JSON.stringify(window.customModeAdjustments));
     localStorage.setItem('bible_mode_adjustments_defaults_version', MODE_DEFAULTS_VERSION);
     localStorage.setItem('bible_hide_box_bg', String(window.customLayoutSettings.hideBoxBg));
+    localStorage.setItem('bible_gold_stroke_enabled', String(window.customLayoutSettings.showGoldStroke !== false));
     localStorage.setItem('bible_verse_box_opacity', String(window.customLayoutSettings.verseBoxOpacity));
     localStorage.setItem('bible_verse_box_blend_mode', window.customLayoutSettings.verseBoxBlendMode);
     localStorage.setItem('bible_verse_box_multiply_intensity', String(window.customLayoutSettings.verseBoxMultiplyIntensity));
@@ -2035,6 +2047,7 @@ if (layoutBtn && layoutModal) {
     document.getElementById('layoutVerseBoxBlendSelect').value = DEFAULT_VERSE_BOX_BLEND_MODE;
     document.getElementById('layoutVerseBoxMultiplyIntensityRange').value = String(DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY);
     document.getElementById('layoutHideBoxChk').checked = false;
+    document.getElementById('layoutGoldStrokeChk').checked = true;
     syncLayoutLive();
   });
   document.getElementById('layoutSaveBtn').addEventListener('click', () => {
