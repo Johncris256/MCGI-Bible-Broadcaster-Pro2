@@ -612,6 +612,11 @@ function renderOutputState(data) {
   const outerMarginParsed = Number.parseInt(outerMarginRaw, 10);
   const outerMargin = Number.isFinite(outerMarginParsed) ? Math.min(120, Math.max(0, outerMarginParsed)) : 39;
   const hideBoxBg = Boolean(s.hideBoxBg);
+  // Gold outline is independent from the verse-box fill. A transparent border
+  // keeps the canvas geometry unchanged when the stroke is hidden.
+  const showGoldStroke = s.showGoldStroke !== false;
+  document.documentElement.style.setProperty('--output-gold-stroke-color', showGoldStroke ? '#A78336' : 'transparent');
+  document.documentElement.style.setProperty('--output-gold-stroke-inset', showGoldStroke ? 'rgba(240, 213, 150, 0.20)' : 'transparent');
   const topGapPx = readClampedInt(compositionSettings.topGap ?? s.topGap, 25, 0, 120);
   const letterSpacingPx = readClampedFloat(compositionSettings.letterSpacing, 0, -2, 10, 1);
   const lineSpacing = readClampedFloat(compositionSettings.lineSpacing, 1.55, 0.8, 2.5, 2);
