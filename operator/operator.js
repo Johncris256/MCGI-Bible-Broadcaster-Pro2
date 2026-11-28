@@ -67,9 +67,9 @@ window.customLengthFontSizes = loadLengthFontSizes();
 // Verse box appearance defaults: full-strength navy fill blended with the
 // live background per tile. Multiply preserves the background's color/detail
 // while keeping the verse box visually strong at 100% opacity.
-const DEFAULT_VERSE_BOX_OPACITY = 88;
-const DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY = 100;
-const DEFAULT_VERSE_BOX_BLEND_MODE = 'default';
+const DEFAULT_VERSE_BOX_OPACITY = 80;
+const DEFAULT_VERSE_BOX_MULTIPLY_INTENSITY = 180;
+const DEFAULT_VERSE_BOX_BLEND_MODE = 'multiply';
 const VALID_VERSE_BOX_BLEND_MODES = new Set(['default', 'multiply', 'darken']);
 const VERSE_BOX_DEFAULTS_VERSION_KEY = 'bible_verse_box_defaults_version';
 const VERSE_BOX_DEFAULTS_VERSION = '2026-11-12-multiply-100-v1';
